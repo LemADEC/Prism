@@ -52,6 +52,7 @@ public class PrismCommands {
         builder.put(ImmutableList.of("rs", "restore"), ApplierCommand.getCommand(ApplierCommand.ApplierMode.RESTORE));
         builder.put(ImmutableList.of("undo"), UndoCommand.getCommand());
         builder.put(ImmutableList.of("ext"), ExtinguishCommand.getCommand());
+        builder.put(ImmutableList.of("purge"), PurgeCommand.getCommand());
         builder.put(ImmutableList.of("?", "help"), HelpCommand.getCommand());
 
         return CommandSpec.builder()

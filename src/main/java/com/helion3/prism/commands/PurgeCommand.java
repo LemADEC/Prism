@@ -21,16 +21,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.helion3.prism.api.storage;
+package com.helion3.prism.commands;
 
-public class StorageDeleteResult implements StorageResult {
-    private final int rowsAffected;
+import com.helion3.prism.util.Format;
+import com.helion3.prism.util.PurgeUtil;
+import org.spongepowered.api.command.CommandResult;
+import org.spongepowered.api.command.args.GenericArguments;
+import org.spongepowered.api.command.spec.CommandSpec;
+import org.spongepowered.api.text.Text;
 
-    public StorageDeleteResult(int rowsAffected) {
-        this.rowsAffected = rowsAffected;
-    }
+public class PurgeCommand {
+    private PurgeCommand() {}
 
-    public int getRowsAffected() {
-        return rowsAffected;
+    public static CommandSpec getCommand() {
+        return CommandSpec.builder()
+            .description(Text.of("Manually activate purging."))
+            .permission("prism.purge")
+            .arguments(GenericArguments.optional(GenericArguments.remainingJoinedStrings(Text.of("parameters"))))
+            .executor((source, args) -> {
+                source.sendMessage(Format.heading("Beginning purge..."));
+
+                PurgeUtil.run((total) -> {
+                    source.sendMessage(Format.success("Purging completed. %d records removed.", total));
+                });
+
+                return CommandResult.success();
+            }).build();
     }
 }
