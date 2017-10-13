@@ -35,6 +35,7 @@ public class ChangeInventoryListener {
      * Saves event records when a player picks up an item.
      *
      * @param event Pickup event.
+     * @param player
      */
     @Listener(order = Order.POST)
     public void onItemPickup(final ChangeInventoryEvent.Pickup event, @Root Player player) {

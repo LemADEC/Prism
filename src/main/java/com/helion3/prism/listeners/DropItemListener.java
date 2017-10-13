@@ -24,7 +24,6 @@
 package com.helion3.prism.listeners;
 
 import com.helion3.prism.api.records.PrismRecord;
-import org.spongepowered.api.entity.Entity;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
@@ -36,11 +35,12 @@ public class DropItemListener {
      * Saves event records when a player drops an item.
      *
      * @param event Dispense event.
+     * @param spawnCause
      */
     @Listener(order = Order.POST)
     public void onDrop(final DropItemEvent.Dispense event, @Root Player spawnCause) {
-        for (Entity e : event.getEntities()) {
+        event.getEntities().forEach((e) -> {
             PrismRecord.create().entity(spawnCause).dropped(e).save();
-        }
+        });
     }
 }

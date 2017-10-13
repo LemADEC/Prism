@@ -41,7 +41,7 @@ public class MySQLQuery extends SQLQuery {
      * @return SQLQuery
      */
     public static SQLQuery from(QuerySession session) {
-        Builder builder = SQLQuery.builder().select().from(tablePrefix + "records AS r");
+        Builder builder = SQLQuery.builder().select().from(TABLE_PREFIX + "records AS r");
         if (!session.hasFlag(Flag.NO_GROUP)) {
             builder.group(
                     DataQueries.EventName.toString(),
@@ -51,7 +51,7 @@ public class MySQLQuery extends SQLQuery {
                     "DATE_FORMAT(created, '%Y-%m-%d')"
             ).col("COUNT(*) AS total").col("DATE_FORMAT(created, '%Y-%m-%d') as created");
         } else {
-            builder.col("*").leftJoin(tablePrefix + "extra AS e", "r.id = e.record_id");
+            builder.col("*").leftJoin(TABLE_PREFIX + "extra AS e", "r.id = e.record_id");
         }
 
         builder.hex(DataQueries.Player.toString(), DataQueries.WorldUuid.toString()).conditions(session.getQuery().getConditions());

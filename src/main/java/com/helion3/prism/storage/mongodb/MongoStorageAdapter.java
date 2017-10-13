@@ -65,6 +65,7 @@ public class MongoStorageAdapter implements StorageAdapter {
      * Establish connections to the database
      *
      * @return Whether we could connect properly
+     * @throws java.lang.Exception
      */
     @Override
     public boolean connect() throws Exception {

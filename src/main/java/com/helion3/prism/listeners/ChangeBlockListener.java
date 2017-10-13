@@ -60,11 +60,7 @@ public class ChangeBlockListener {
             return;
         }
 
-        for (Transaction<BlockSnapshot> transaction : event.getTransactions()) {
-            if (!transaction.isValid()) {
-                continue;
-            }
-
+        event.getTransactions().stream().filter((transaction) -> !(!transaction.isValid())).forEachOrdered((transaction) -> {
             PrismRecordEventBuilder record = PrismRecord.create().source(event.getCause());
 
             BlockType original = transaction.getOriginal().getState().getType();
@@ -89,6 +85,6 @@ public class ChangeBlockListener {
                     record.decayedBlock(transaction).save();
                 }
             }
-        }
+        });
     }
 }

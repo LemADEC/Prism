@@ -23,13 +23,11 @@
  */
 package com.helion3.prism.listeners;
 
-import java.util.Optional;
 
 import com.helion3.prism.api.flags.Flag;
 import org.spongepowered.api.block.BlockSnapshot;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.action.InteractEvent;
 import org.spongepowered.api.event.block.InteractBlockEvent;
 import org.spongepowered.api.event.block.InteractBlockEvent.Secondary;
 import org.spongepowered.api.event.filter.cause.First;
@@ -50,6 +48,7 @@ public class RequiredInteractListener {
      * This listener is required and does not track any events.
      *
      * @param event InteractEvent
+     * @param player
      */
     @Listener
     public void onInteract(final InteractBlockEvent event, @First Player player) {

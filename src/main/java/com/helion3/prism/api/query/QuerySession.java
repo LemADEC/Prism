@@ -136,6 +136,7 @@ public class QuerySession {
      *
      * @param arguments String parameters/flags
      * @return CompletableFuture<Query>
+     * @throws com.helion3.prism.api.parameters.ParameterException
      */
     public CompletableFuture<Void> newQueryFromArguments(@Nullable String arguments) throws ParameterException {
         CompletableFuture<Query> future = QueryBuilder.fromArguments(this, arguments);
@@ -144,6 +145,7 @@ public class QuerySession {
 
     /**
      * Sets the sort order to be used for the query.
+     * @param sort
      */
     public void setSortBy(Sort sort) {
         this.sort = sort;

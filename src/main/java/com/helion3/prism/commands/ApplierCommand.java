@@ -25,6 +25,7 @@ package com.helion3.prism.commands;
 
 import com.helion3.prism.Prism;
 import com.helion3.prism.api.flags.Flag;
+import com.helion3.prism.api.parameters.ParameterException;
 import com.helion3.prism.api.query.QuerySession;
 import com.helion3.prism.api.query.Sort;
 import com.helion3.prism.api.records.Actionable;
@@ -144,7 +145,7 @@ public class ApplierCommand {
                         e.printStackTrace();
                     }
                 });
-            } catch(Exception e) {
+            } catch(ParameterException e) {
                 source.sendMessage(Format.error(Text.of(e.getMessage())));
                 e.printStackTrace();
             }

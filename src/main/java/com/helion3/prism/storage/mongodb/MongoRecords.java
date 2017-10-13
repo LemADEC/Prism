@@ -146,17 +146,16 @@ public class MongoRecords implements StorageAdapterRecords {
 
        // Build an array of documents
        List<WriteModel<Document>> documents = new ArrayList<>();
-       for (DataContainer container : containers) {
-           Document document = documentFromView(container);
-
+       containers.stream().map((container) -> documentFromView(container)).map((document) -> {
            //Prism.getLogger().debug(DataUtil.jsonFromDataView(container).toString());
 
            // TTL
            document.append("Expires", DateUtil.parseTimeStringToDate(expiration, true));
-
-           // Insert
-           documents.add(new InsertOneModel<>(document));
-       }
+            return document;
+        }).forEachOrdered((document) -> {
+            // Insert
+            documents.add(new InsertOneModel<>(document));
+        });
 
        // Write
        collection.bulkWrite(documents, bulkWriteOptions);
@@ -175,7 +174,7 @@ public class MongoRecords implements StorageAdapterRecords {
    private Document buildConditions(List<Condition> fieldsOrGroups) {
        Document conditions = new Document();
 
-       for (Condition fieldOrGroup : fieldsOrGroups) {
+       fieldsOrGroups.forEach((fieldOrGroup) -> {
            if (fieldOrGroup instanceof ConditionGroup) {
                ConditionGroup group = (ConditionGroup) fieldOrGroup;
                Document subDoc = buildConditions(group.getConditions());
@@ -226,7 +225,7 @@ public class MongoRecords implements StorageAdapterRecords {
                    conditions.put(field.getFieldName().toString(), between);
                }
            }
-       }
+        });
 
        return conditions;
    }

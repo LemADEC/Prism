@@ -35,6 +35,7 @@ public class QuitListener {
      * Saves event records when a player quits.
      *
      * @param event Disconnect event.
+     * @param player
      */
     @Listener
     public void onQuit(final ClientConnectionEvent.Disconnect event, @Getter("getTargetEntity") Player player) {

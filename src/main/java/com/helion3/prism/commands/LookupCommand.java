@@ -23,6 +23,7 @@
  */
 package com.helion3.prism.commands;
 
+import com.helion3.prism.api.parameters.ParameterException;
 import java.util.concurrent.CompletableFuture;
 
 import org.spongepowered.api.text.Text;
@@ -64,7 +65,7 @@ public class LookupCommand {
                             e.printStackTrace();
                         }
                     });
-                } catch(Exception e) {
+                } catch(ParameterException e) {
                     String message = e.getMessage() == null ? "Unknown error. Please check the console." : e.getMessage();
                     source.sendMessage(Format.error(Text.of(message)));
                     e.printStackTrace();

@@ -77,6 +77,7 @@ public interface ParameterHandler {
      * @param parameter String parameter used
      * @param value String value(s) given with parameter
      * @param query Query Current query object
+     * @return 
      */
     Optional<CompletableFuture<?>> process(QuerySession session, String parameter, String value, Query query);
 
@@ -84,6 +85,8 @@ public interface ParameterHandler {
      * Called when this handler's aliases were not defined.
      *
      * @param session QuerySession
+     * @param query
+     * @return 
      */
     default Optional<Pair<String, String>> processDefault(QuerySession session, Query query) {
         return Optional.empty();

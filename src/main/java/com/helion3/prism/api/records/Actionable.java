@@ -34,6 +34,7 @@ public interface Actionable {
      * the block at the same location.
      *
      * @return ActionableResult Results of applier action
+     * @throws java.lang.Exception
      */
     public ActionableResult rollback() throws Exception;
 
@@ -43,6 +44,7 @@ public interface Actionable {
      * would allow this change.
      *
      * @return ActionableResult Results of applier action
+     * @throws java.lang.Exception
      */
     public ActionableResult restore() throws Exception;
 }

@@ -40,7 +40,7 @@ import com.helion3.prism.Prism;
  * Super simple SQL query builder.
  */
 public class SQLQuery {
-    protected final static String tablePrefix = Prism.getConfig().getNode("db", "mysql", "tablePrefix").getString();
+    protected final static String TABLE_PREFIX = Prism.getConfig().getNode("db", "mysql", "tablePrefix").getString();
     protected final String query;
 
     /**
@@ -63,14 +63,14 @@ public class SQLQuery {
      */
     public static class Builder {
         private Mode mode;
-        private List<String> columns = new ArrayList<>();
-        private List<String> groupBy = new ArrayList<>();
-        private List<String> orderBy = new ArrayList<>();
-        private List<String> unhexCols = new ArrayList<>();
+        private final List<String> columns = new ArrayList<>();
+        private final List<String> groupBy = new ArrayList<>();
+        private final List<String> orderBy = new ArrayList<>();
+        private final List<String> unhexCols = new ArrayList<>();
         private String table;
-        private Map<String, String> joins = new HashMap<>();
-        private List<Condition> conditions = new ArrayList<>();
-        private Map<DataQuery, QueryValueMutator> valueMutators = new HashMap<>();
+        private final Map<String, String> joins = new HashMap<>();
+        private final List<Condition> conditions = new ArrayList<>();
+        private final Map<DataQuery, QueryValueMutator> valueMutators = new HashMap<>();
 
         public Builder select() {
             mode = Mode.SELECT;
@@ -191,9 +191,9 @@ public class SQLQuery {
             sql.append("FROM ").append(table).append(" ");
 
             // Joins
-            for (Entry<String, String> entry : joins.entrySet()) {
+            joins.entrySet().forEach((entry) -> {
                 sql.append("LEFT JOIN ").append(entry.getKey()).append(" ON ").append(entry.getValue()).append(" ");
-            }
+            });
 
             // Where
             List<String> queryConditions = buildConditions(conditions);
@@ -223,14 +223,14 @@ public class SQLQuery {
          */
         protected List<String> buildConditions(List<Condition> conditions) {
             List<String> queryConditions = new ArrayList<>();
-            for (Condition fieldOrGroup : conditions) {
+            conditions.forEach((fieldOrGroup) -> {
                 if (fieldOrGroup instanceof ConditionGroup) {
                     ConditionGroup group = (ConditionGroup) fieldOrGroup;
 
                     StringBuilder query = new StringBuilder("AND (");
 
                     List<String> inner = new ArrayList<>();
-                    for (Object obj : group.getConditions()) {
+                    group.getConditions().forEach((obj) -> {
                         if (obj instanceof ConditionGroup) {
                             query.append(buildConditions(((ConditionGroup) obj).getConditions()));
                         }
@@ -243,7 +243,7 @@ public class SQLQuery {
                             }
                         }
                         // @todo need and/or here
-                    }
+                    });
 
                     if (!inner.isEmpty()) {
                         query.append(String.join(group.getOperator().name() + " ", inner));
@@ -258,7 +258,7 @@ public class SQLQuery {
                         queryConditions.add("AND (" + popDataQuery(condition.getFieldName().toString()) + " " + fieldComparator + ")");
                     }
                 }
-            }
+            });
 
             return queryConditions;
         }
@@ -286,20 +286,24 @@ public class SQLQuery {
                 value = mutator.mutate(condition.getValue().toString());
             }
 
-            if (condition.getMatchRule().equals(MatchRule.EQUALS)) {
-                fieldComparator += "= " + value + " ";
+            switch (condition.getMatchRule()) {
+                case EQUALS:
+                    fieldComparator += "= " + value + " ";
+                    break;
+                    // @todo handle includes, excludes
+                case BETWEEN:
+                    Range<?> range = (Range<?>) condition.getValue();
+                    fieldComparator += "> " + range.lowerEndpoint() + " AND " + field + " < " + range.upperEndpoint() + " ";
+                    break;
+                case GREATER_THAN_EQUAL:
+                    fieldComparator += ">= " + value + " ";
+                    break;
+                case LESS_THAN_EQUAL:
+                    fieldComparator += "<= " + value + " ";
+                    break;
+                default:
+                    break;
             }
-            else if (condition.getMatchRule().equals(MatchRule.BETWEEN)) {
-                Range<?> range = (Range<?>) condition.getValue();
-                fieldComparator += "> " + range.lowerEndpoint() + " AND " + field + " < " + range.upperEndpoint() + " ";
-            }
-            else if (condition.getMatchRule().equals(MatchRule.GREATER_THAN_EQUAL)) {
-                fieldComparator += ">= " + value + " ";
-            }
-            else if (condition.getMatchRule().equals(MatchRule.LESS_THAN_EQUAL)) {
-                fieldComparator += "<= " + value + " ";
-            }
-            // @todo handle includes, excludes
 
             return fieldComparator;
         }

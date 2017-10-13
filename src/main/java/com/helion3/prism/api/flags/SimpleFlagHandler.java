@@ -39,6 +39,7 @@ public abstract class SimpleFlagHandler implements FlagHandler {
     /**
      * Returns whether this handler applies to the given
      * parameter string.
+     * @param alias
      */
     @Override
     public boolean handles(String alias) {

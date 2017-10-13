@@ -82,16 +82,17 @@ import com.helion3.prism.storage.mysql.MySQLStorageAdapter;
  * @author viveleroi
  */
 @Plugin(id = "prism", name = "Prism", version = "3.0.0", description = "A rollback/restore grief-prevention plugin.", authors = "viveleroi")
-final public class Prism {
-    private static List<UUID> activeWands = new ArrayList<>();
-    private static final FilterList filterlist = new FilterList(FilterMode.BLACKLIST);
+public class Prism {
+
+    private static final List<UUID> ACTIVE_WANDS = new ArrayList<>();
+    private static final FilterList FILTER_LIST = new FilterList(FilterMode.BLACKLIST);
     private static Configuration config;
     private static Game game;
-    private static List<ParameterHandler> handlers = new ArrayList<>();
-    private static List<FlagHandler> flagHandlers = new ArrayList<>();
-    private static Map<UUID, List<ActionableResult>> lastActionResults = new HashMap<>();
+    private static final List<ParameterHandler> HANDLERS = new ArrayList<>();
+    private static final List<FlagHandler> FLAG_HANDLERS = new ArrayList<>();
+    private static final Map<UUID, List<ActionableResult>> LAST_ACTION_RESULTS = new HashMap<>();
     private static Logger logger;
-    private static Map<String,Class<? extends Result>> resultRecords = new HashMap<>();
+    private static final Map<String, Class<? extends Result>> RESULT_RECORDS = new HashMap<>();
     private static File parentDirectory;
     private static Object plugin;
     private static StorageAdapter storageAdapter;
@@ -136,14 +137,11 @@ final public class Prism {
         try {
             if (engine.equalsIgnoreCase("h2")) {
                 storageAdapter = new H2StorageAdapter();
-            }
-            else if (engine.equalsIgnoreCase("mongo")) {
+            } else if (engine.equalsIgnoreCase("mongo")) {
                 storageAdapter = new MongoStorageAdapter();
-            }
-            else if (engine.equalsIgnoreCase("mysql")) {
+            } else if (engine.equalsIgnoreCase("mysql")) {
                 storageAdapter = new MySQLStorageAdapter();
-            }
-            else {
+            } else {
                 throw new Exception("Invalid storage engine configured.");
             }
 
@@ -155,11 +153,11 @@ final public class Prism {
 
         // Initialize the recording queue manager
         Task.builder()
-            .async()
-            .name("PrismRecordingQueueManager")
-            .interval(1, TimeUnit.SECONDS)
-            .execute(new RecordingQueueManager())
-            .submit(this);
+                .async()
+                .name("PrismRecordingQueueManager")
+                .interval(1, TimeUnit.SECONDS)
+                .execute(new RecordingQueueManager())
+                .submit(this);
 
         // Commands
         game.getCommandManager().register(this, PrismCommands.getCommand(), "prism", "pr");
@@ -173,19 +171,21 @@ final public class Prism {
      * @return A list of players' UUIDs who have an active inspection wand
      */
     public static List<UUID> getActiveWands() {
-        return activeWands;
+        return ACTIVE_WANDS;
     }
 
     /**
      * Returns the blacklist manager.
+     *
      * @return Blacklist
      */
     public static FilterList getFilterList() {
-        return filterlist;
+        return FILTER_LIST;
     }
 
     /**
      * Returns the plugin configuration
+     *
      * @return Configuration
      */
     public static Configuration getConfig() {
@@ -194,6 +194,7 @@ final public class Prism {
 
     /**
      * Returns the current game
+     *
      * @return Game
      */
     public static Game getGame() {
@@ -202,6 +203,7 @@ final public class Prism {
 
     /**
      * Injected Game instance.
+     *
      * @param injectGame Game
      */
     @Inject
@@ -212,14 +214,16 @@ final public class Prism {
     /**
      * Get a map of players and their last available actionable results.
      *
-     * @return A map of players' UUIDs to a list of their {@link ActionableResult}s
+     * @return A map of players' UUIDs to a list of their
+     * {@link ActionableResult}s
      */
     public static Map<UUID, List<ActionableResult>> getLastActionResults() {
-        return lastActionResults;
+        return LAST_ACTION_RESULTS;
     }
 
     /**
      * Returns the Logger instance for this plugin.
+     *
      * @return Logger instance
      */
     public static Logger getLogger() {
@@ -228,12 +232,13 @@ final public class Prism {
 
     /**
      * Returns a specific handler for a given parameter
+     *
      * @param flag String flag name
      * @return
      */
     public static Optional<FlagHandler> getFlagHandler(String flag) {
         FlagHandler result = null;
-        for(FlagHandler handler : Prism.getFlagHandlers()) {
+        for (FlagHandler handler : Prism.getFlagHandlers()) {
             if (handler.handles(flag)) {
                 result = handler;
             }
@@ -244,20 +249,22 @@ final public class Prism {
 
     /**
      * Returns all currently registered flag handlers.
+     *
      * @return List of {@link FlagHandler}
      */
     public static List<FlagHandler> getFlagHandlers() {
-        return flagHandlers;
+        return FLAG_HANDLERS;
     }
 
     /**
      * Returns a specific handler for a given parameter
+     *
      * @param parameter String parameter name
      * @return
      */
     public static Optional<ParameterHandler> getParameterHandler(String parameter) {
         ParameterHandler result = null;
-        for(ParameterHandler handler : Prism.getParameterHandlers()) {
+        for (ParameterHandler handler : Prism.getParameterHandlers()) {
             if (handler.handles(parameter)) {
                 result = handler;
             }
@@ -268,14 +275,16 @@ final public class Prism {
 
     /**
      * Returns all currently registered parameter handlers.
+     *
      * @return List of {@link ParameterHandler}
      */
     public static List<ParameterHandler> getParameterHandlers() {
-        return handlers;
+        return HANDLERS;
     }
 
     /**
      * Get parent directory.
+     *
      * @return File
      */
     public static File getParentDirectory() {
@@ -292,15 +301,17 @@ final public class Prism {
 
     /**
      * Returns the result record for a given event.
+     *
      * @param eventName Event name.
      * @return Result record class.
      */
     public static Class<? extends Result> getResultRecord(String eventName) {
-        return resultRecords.get(eventName);
+        return RESULT_RECORDS.get(eventName);
     }
 
     /**
      * Returns our storage/database adapter.
+     *
      * @return Storage adapter.
      */
     public static StorageAdapter getStorageAdapter() {
@@ -309,6 +320,7 @@ final public class Prism {
 
     /**
      * Injects the Logger instance for this plugin
+     *
      * @param log Logger
      */
     @Inject
@@ -329,12 +341,13 @@ final public class Prism {
 
     /**
      * Register a flag handler.
+     *
      * @param handler
      */
     private void registerFlagHandler(FlagHandler handler) {
         checkNotNull(handler);
         // @todo validate flag doesn't exist
-        flagHandlers.add(handler);
+        FLAG_HANDLERS.add(handler);
     }
 
     /**
@@ -355,7 +368,7 @@ final public class Prism {
     public void registerParameterHandler(ParameterHandler handler) {
         checkNotNull(handler);
         // @todo validate alias doesn't exist
-        handlers.add(handler);
+        HANDLERS.add(handler);
     }
 
     /**
@@ -372,15 +385,16 @@ final public class Prism {
 
     /**
      * Register a custom result record for a given event name.
+     *
      * @param eventName
      * @param clazz
      */
     public void registerResultRecord(String eventName, Class<? extends Result> clazz) {
-        if (resultRecords.containsKey(eventName)) {
+        if (RESULT_RECORDS.containsKey(eventName)) {
             throw new IllegalArgumentException("A result record is already registered for event \"" + eventName + "\"");
         }
 
-        resultRecords.put(eventName, clazz);
+        RESULT_RECORDS.put(eventName, clazz);
     }
 
     /**

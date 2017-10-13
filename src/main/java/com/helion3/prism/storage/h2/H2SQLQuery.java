@@ -39,12 +39,12 @@ public class H2SQLQuery extends SQLQuery {
      * @return SQLQuery
      */
     public static SQLQuery from(QuerySession session) {
-        Builder query = SQLQuery.builder().select().from(tablePrefix + "records AS r");
+        Builder query = SQLQuery.builder().select().from(TABLE_PREFIX + "records AS r");
         if (!session.hasFlag(Flag.NO_GROUP)) {
             query.col("COUNT(*) AS total");
             query.group("eventName", "target", "player", "cause");
         } else {
-            query.col("*").leftJoin(tablePrefix + "extra AS e", "r.id = e.record_id");
+            query.col("*").leftJoin(TABLE_PREFIX + "extra AS e", "r.id = e.record_id");
         }
 
         query.conditions(session.getQuery().getConditions());

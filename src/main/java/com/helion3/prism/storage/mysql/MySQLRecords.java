@@ -184,9 +184,9 @@ public class MySQLRecords implements StorageAdapterRecords {
                         JsonObject json = new JsonParser().parse(rs.getString("json")).getAsJsonObject();
                         DataView extra = DataUtil.dataViewFromJson(json);
 
-                        for (DataQuery key : extra.getKeys(false)) {
+                        extra.getKeys(false).forEach((key) -> {
                             data.set(key, extra.get(key).get());
-                        }
+                        });
                     }
                 }
 

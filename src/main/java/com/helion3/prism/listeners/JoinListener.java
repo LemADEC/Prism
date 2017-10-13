@@ -35,6 +35,7 @@ public class JoinListener {
      * Saves event records when a player joins.
      *
      * @param event Join event.
+     * @param player
      */
     @Listener
     public void onJoin(final ClientConnectionEvent.Join event, @Getter("getTargetEntity") Player player) {
