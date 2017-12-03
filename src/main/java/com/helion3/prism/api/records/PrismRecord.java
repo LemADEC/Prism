@@ -30,7 +30,6 @@ import org.spongepowered.api.block.BlockSnapshot;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
-import org.spongepowered.api.data.MemoryDataContainer;
 import org.spongepowered.api.data.Transaction;
 import org.spongepowered.api.entity.Entity;
 import org.spongepowered.api.entity.Item;
@@ -146,7 +145,7 @@ public class PrismRecord {
 
         protected final PrismRecordSourceBuilder source;
         protected String eventName;
-        protected DataContainer data = new MemoryDataContainer();
+        protected DataContainer data = DataContainer.createNew();
 
         private PrismRecordEventBuilder(PrismRecordSourceBuilder source) {
             this.source = source;
@@ -402,21 +401,21 @@ public class PrismRecord {
                     int itemQty = 0;
 
                     // Insert
-                    if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getCount() > transaction.getOriginal().getCount()) {
+                    if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
                         itemId = transaction.getFinal().getType().getId();
                         if (transaction.getOriginal().getType() == ItemTypes.NONE) {
-                            itemQty = transaction.getFinal().getCount();
+                            itemQty = transaction.getFinal().getQuantity();
                         } else {
-                            itemQty = transaction.getFinal().getCount() - transaction.getOriginal().getCount();
+                            itemQty = transaction.getFinal().getQuantity() - transaction.getOriginal().getQuantity();
                         }
                     }
                     // Remove
-                    if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getCount() < transaction.getOriginal().getCount()) {
+                    if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
                         itemId = transaction.getOriginal().getType().getId();
                         if (transaction.getFinal().getType() == ItemTypes.NONE) {
-                            itemQty = transaction.getOriginal().getCount();
+                            itemQty = transaction.getOriginal().getQuantity();
                         } else {
-                            itemQty = transaction.getOriginal().getCount() - transaction.getFinal().getCount();
+                            itemQty = transaction.getOriginal().getQuantity() - transaction.getFinal().getQuantity();
                         }
                     }
 
@@ -485,7 +484,7 @@ public class PrismRecord {
         /**
          * Helper method for formatting player container data.
          *
-         * @param player
+         * @param player Player triggering the event.
          */
         private void writePlayerLocation(Player player) {
             checkNotNull(player);

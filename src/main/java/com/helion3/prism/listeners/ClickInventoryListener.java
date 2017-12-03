@@ -43,7 +43,7 @@ public class ClickInventoryListener {
      * Saves event records when a player removes an item from an inventory.
      *
      * @param event Dispense event.
-     * @param player
+     * @param player Player triggering the event.
      */
     @Listener(order = Order.POST)
      public void onInventoryClick(ClickInventoryEvent event, @Root Player player) {
@@ -56,14 +56,14 @@ public class ClickInventoryListener {
             Slot slot = transaction.getSlot();
             if (slot.parent() instanceof CarriedInventory && transaction.getOriginal() != transaction.getFinal()) {
                 //If the final item is SOMETHING (or amount is more) person is inserting
-                if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getCount() > transaction.getOriginal().getCount()) {
+                if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
                     if (Prism.listening.INSERT) {
                         PrismRecord.PrismRecordEventBuilder record = PrismRecord.create().source(event.getCause());
                         record.insertItem(transaction).save();
                     }
                 }
                 //If the final item is NONE (or amount is less) person is withdrawing
-                if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getCount() < transaction.getOriginal().getCount()) {
+                if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
                     if (Prism.listening.REMOVE) {
                         PrismRecord.PrismRecordEventBuilder record = PrismRecord.create().source(event.getCause());
                         record.removeItem(transaction).save();

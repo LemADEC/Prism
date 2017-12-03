@@ -38,7 +38,7 @@ public class ChangeInventoryListener {
      * @param player
      */
     @Listener(order = Order.POST)
-    public void onItemPickup(final ChangeInventoryEvent.Pickup event, @Root Player player) {
+    public void onItemPickup(final ChangeInventoryEvent.Pickup.Pre event, @Root Player player) {
         PrismRecord.create().player(player).pickedUp(event.getTargetEntity()).save();
     }
 }

@@ -16,9 +16,6 @@ Because of this, our feature set is growing. File an issue or let us know in IRC
 
 If using Mongo, download the `Prism-(version)-all.jar` file. Otherwise, download `Prism-(version).jar`.
 
-- Prism 3.0.0-beta2+ supports SpongeAPI 4.0+
-- Prism 3.0.0-beta1+ supports SpongeAPI 3.0+
-
 ## Installation
 
 1. Place into your `mods` directory. 
@@ -56,6 +53,7 @@ If using Mongo, download the `Prism-(version)-all.jar` file. Otherwise, download
 - `-clean` - Clean dangerous blocks and item drops from the rollback area.
 - `-drain` - Drain liquids within a rollback area.
 - `-no-group` - Prevent record grouping in lookups. Clicking on a single record will teleport you to those coordinates.
+- `-extended` - Prints additional information to the /lookup command - Ex: Result (X, Y, Z) Date Time
 
 ## Permissions
 
