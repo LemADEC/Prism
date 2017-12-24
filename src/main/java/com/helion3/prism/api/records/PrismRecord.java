@@ -44,13 +44,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.helion3.prism.Prism;
 import com.helion3.prism.queues.RecordingQueue;
 import com.helion3.prism.util.DataQueries;
-import net.minecraft.inventory.AnimalChest;
-import net.minecraft.inventory.Container;
-import net.minecraft.inventory.ContainerHorseInventory;
-import net.minecraft.inventory.Slot;
 import org.spongepowered.api.item.ItemTypes;
-import org.spongepowered.api.item.inventory.entity.PlayerInventory;
-import org.spongepowered.api.item.inventory.property.SlotIndex;
+import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 import org.spongepowered.api.item.inventory.type.CarriedInventory;
 import org.spongepowered.api.world.Locatable;
@@ -375,54 +370,70 @@ public class PrismRecord {
          * @param transaction BlockTransaction representing a block change in
          * the world.
          */
-        private void writeItemTransaction(SlotTransaction transaction) {
+        private void writeItemTransaction(final SlotTransaction transaction) {
             checkNotNull(transaction);
 
             // Location
-            ((CarriedInventory) transaction.getSlot().parent()).getCarrier().ifPresent((Object carrier) -> {
-                if (carrier instanceof Locatable) {
-                    
-                    /**
-                       This is a bit of a hack, but will work until Sponge implements a better way of getting the real inventory of a slot.                     
-                     */
-                    Container container = ((Container) transaction.getSlot().parent());
-                    Integer slotClicked = transaction.getSlot().getProperty(SlotIndex.class, "slotindex").map(SlotIndex::getValue).orElse(-1);
-                    
-                    Slot slot = container.inventorySlots.get(slotClicked);
-                    
-                    if(slot.inventory instanceof PlayerInventory || slot.inventory instanceof AnimalChest || slot.inventory instanceof ContainerHorseInventory) {
-                        return;
-                    }       
-                    
-                    DataContainer location = ((Locatable) carrier).getLocation().toContainer();
-                    data.set(DataQueries.Location, location);
+            final Inventory parent = transaction.getSlot().parent();
+            if (!(parent instanceof CarriedInventory)) {
+                Prism.getLogger().error(String.format("writeItemTransaction: Invalid inventory parent class, expecting CarriedInventory\n"
+                                                      + "parent is %s\ntransaction is %s",
+                                                      parent, transaction));
+                return;
+            }
+            final Optional oCarrier = ((CarriedInventory) parent).getCarrier();
+            if (!oCarrier.isPresent()) {
+                Prism.getLogger().error(String.format("writeItemTransaction: no carrier defined\n"
+                                                      + "parent is %s\ntransaction is %s",
+                                                      parent, transaction));
+                return;
+            }
+            final Object carrier = oCarrier.get();
+            if (carrier instanceof Locatable) {
+                
+                /*
+                   This is a bit of a hack, but will work until Sponge implements a better way of getting the real inventory of a slot.                     
+                 */
+                // Inventory inventory = transaction.getSlot().parent();
+                // Integer slotClicked = transaction.getSlot().getProperty(SlotIndex.class, "slotindex").map(SlotIndex::getValue).orElse(-1);
+                // 
+                // // Slot slot = container.slots().get(slotClicked);
+                // 
+                // if ( slot.inventory instanceof PlayerInventory
+                //   || slot.inventory instanceof AnimalChest
+                //   || slot.inventory instanceof ContainerHorseInventory) {
+                //     return;
+                // }       
+                
+                DataContainer location = ((Locatable) carrier).getLocation().toContainer();
+                data.set(DataQueries.Location, location);
 
-                    String itemId = "";
-                    int itemQty = 0;
+                String itemId = "";
+                int itemQty = 0;
 
-                    // Insert
-                    if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
-                        itemId = transaction.getFinal().getType().getId();
-                        if (transaction.getOriginal().getType() == ItemTypes.NONE) {
-                            itemQty = transaction.getFinal().getQuantity();
-                        } else {
-                            itemQty = transaction.getFinal().getQuantity() - transaction.getOriginal().getQuantity();
-                        }
+                // Insert
+                if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
+                    itemId = transaction.getFinal().getType().getId();
+                    if (transaction.getOriginal().getType() == ItemTypes.NONE) {
+                        itemQty = transaction.getFinal().getQuantity();
+                    } else {
+                        itemQty = transaction.getFinal().getQuantity() - transaction.getOriginal().getQuantity();
                     }
-                    // Remove
-                    if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
-                        itemId = transaction.getOriginal().getType().getId();
-                        if (transaction.getFinal().getType() == ItemTypes.NONE) {
-                            itemQty = transaction.getOriginal().getQuantity();
-                        } else {
-                            itemQty = transaction.getOriginal().getQuantity() - transaction.getFinal().getQuantity();
-                        }
-                    }
-
-                    data.set(DataQueries.Target, itemId);
-                    data.set(DataQueries.Quantity, itemQty);
                 }
-            });
+                
+                // Remove
+                if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
+                    itemId = transaction.getOriginal().getType().getId();
+                    if (transaction.getFinal().getType() == ItemTypes.NONE) {
+                        itemQty = transaction.getOriginal().getQuantity();
+                    } else {
+                        itemQty = transaction.getOriginal().getQuantity() - transaction.getFinal().getQuantity();
+                    }
+                }
+
+                data.set(DataQueries.Target, itemId);
+                data.set(DataQueries.Quantity, itemQty);
+            }
         }
 
         /**
