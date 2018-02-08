@@ -46,10 +46,7 @@ import com.helion3.prism.Prism;
 import com.helion3.prism.queues.RecordingQueue;
 import com.helion3.prism.util.DataQueries;
 import org.spongepowered.api.item.ItemTypes;
-import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
-import org.spongepowered.api.item.inventory.type.CarriedInventory;
-import org.spongepowered.api.world.Locatable;
 
 /**
  * An easy-to-understand factory class for Prism records.
@@ -219,9 +216,9 @@ public class PrismRecord {
          * @param transaction itemstack inserted.
          * @return PrismRecord
          */
-        public PrismRecord insertItem(SlotTransaction transaction) {
+        public PrismRecord insertItem(final SlotTransaction transaction, final DataContainer locationDataContainer) {
             this.eventName = "insert";
-            writeItemTransaction(transaction);
+            writeItemTransaction(transaction, locationDataContainer);
             return new PrismRecord(source, this);
         }
 
@@ -231,9 +228,9 @@ public class PrismRecord {
          * @param transactions itemstacks being inserted.
          * @return PrismRecord
          */
-        public PrismRecord pickedUp(List<SlotTransaction> transactions) {
+        public PrismRecord pickedUp(List<SlotTransaction> transactions, final DataContainer locationDataContainer) {
             this.eventName = "picked up";
-            writeItemTransactions(transactions);
+            writeItemTransactions(transactions, locationDataContainer);
             return new PrismRecord(source, this);
         }
 
@@ -255,9 +252,9 @@ public class PrismRecord {
          * @param transaction itemstack inserted.
          * @return PrismRecord
          */
-        public PrismRecord removeItem(SlotTransaction transaction) {
+        public PrismRecord removeItem(final SlotTransaction transaction, final DataContainer locationDataContainer) {
             this.eventName = "remove";
-            writeItemTransaction(transaction);
+            writeItemTransaction(transaction, locationDataContainer);
             return new PrismRecord(source, this);
         }
 
@@ -371,70 +368,36 @@ public class PrismRecord {
          * @param transaction BlockTransaction representing a block change in
          * the world.
          */
-        private void writeItemTransaction(final SlotTransaction transaction) {
+        private void writeItemTransaction(final SlotTransaction transaction, final DataContainer locationDataContainer) {
             checkNotNull(transaction);
 
-            // Location
-            final Inventory parent = transaction.getSlot().parent();
-            if (!(parent instanceof CarriedInventory)) {
-                Prism.getLogger().error(String.format("writeItemTransaction: Invalid inventory parent class, expecting CarriedInventory\n"
-                                                      + "parent is %s\ntransaction is %s",
-                                                      parent, transaction));
-                return;
-            }
-            final Optional oCarrier = ((CarriedInventory) parent).getCarrier();
-            if (!oCarrier.isPresent()) {
-                Prism.getLogger().error(String.format("writeItemTransaction: no carrier defined\n"
-                                                      + "parent is %s\ntransaction is %s",
-                                                      parent, transaction));
-                return;
-            }
-            final Object carrier = oCarrier.get();
-            if (carrier instanceof Locatable) {
-                
-                /*
-                   This is a bit of a hack, but will work until Sponge implements a better way of getting the real inventory of a slot.                     
-                 */
-                // Inventory inventory = transaction.getSlot().parent();
-                // Integer slotClicked = transaction.getSlot().getProperty(SlotIndex.class, "slotindex").map(SlotIndex::getValue).orElse(-1);
-                // 
-                // // Slot slot = container.slots().get(slotClicked);
-                // 
-                // if ( slot.inventory instanceof PlayerInventory
-                //   || slot.inventory instanceof AnimalChest
-                //   || slot.inventory instanceof ContainerHorseInventory) {
-                //     return;
-                // }       
-                
-                DataContainer location = ((Locatable) carrier).getLocation().toContainer();
-                data.set(DataQueries.Location, location);
+            data.set(DataQueries.Location, locationDataContainer);
 
-                String itemId = "";
-                int itemQty = 0;
+            String itemId = "";
+            int itemQty = 0;
 
-                // Insert
-                if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
-                    itemId = transaction.getFinal().getType().getId();
-                    if (transaction.getOriginal().getType() == ItemTypes.NONE) {
-                        itemQty = transaction.getFinal().getQuantity();
-                    } else {
-                        itemQty = transaction.getFinal().getQuantity() - transaction.getOriginal().getQuantity();
-                    }
+            // Insert
+            if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
+                itemId = transaction.getFinal().getType().getId();
+                if (transaction.getOriginal().getType() == ItemTypes.NONE) {
+                    itemQty = transaction.getFinal().getQuantity();
+                } else {
+                    itemQty = transaction.getFinal().getQuantity() - transaction.getOriginal().getQuantity();
                 }
-                
-                // Remove
-                if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
-                    itemId = transaction.getOriginal().getType().getId();
-                    if (transaction.getFinal().getType() == ItemTypes.NONE) {
-                        itemQty = transaction.getOriginal().getQuantity();
-                    } else {
-                        itemQty = transaction.getOriginal().getQuantity() - transaction.getFinal().getQuantity();
-                    }
-                }
-
-                data.set(DataQueries.Target, itemId);
-                data.set(DataQueries.Quantity, itemQty);
             }
+            
+            // Remove
+            if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
+                itemId = transaction.getOriginal().getType().getId();
+                if (transaction.getFinal().getType() == ItemTypes.NONE) {
+                    itemQty = transaction.getOriginal().getQuantity();
+                } else {
+                    itemQty = transaction.getOriginal().getQuantity() - transaction.getFinal().getQuantity();
+                }
+            }
+
+            data.set(DataQueries.Target, itemId);
+            data.set(DataQueries.Quantity, itemQty);
         }
 
         /**
@@ -445,45 +408,10 @@ public class PrismRecord {
          * @param transactions BlockTransaction representing a block change in
          * the world.
          */
-        private void writeItemTransactions(List<SlotTransaction> transactions) {
+        private void writeItemTransactions(List<SlotTransaction> transactions, final DataContainer locationDataContainer) {
             checkNotNull(transactions);
 
-            transactions.forEach((transaction) -> {
-
-                // Location
-                ((CarriedInventory) transaction.getSlot().parent()).getCarrier().ifPresent((Object carrier) -> {
-                    if (carrier instanceof Locatable && !(carrier instanceof Entity)) {
-
-                        DataContainer location = ((Locatable) carrier).getLocation().toContainer();
-                        data.set(DataQueries.Location, location);
-
-                        String itemId = "";
-                        int itemQty = 0;
-
-                        // Insert
-                        if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
-                            itemId = transaction.getFinal().getType().getId();
-                            if (transaction.getOriginal().getType() == ItemTypes.NONE) {
-                                itemQty = transaction.getFinal().getQuantity();
-                            } else {
-                                itemQty = transaction.getFinal().getQuantity() - transaction.getOriginal().getQuantity();
-                            }
-                        }
-                        // Remove
-                        if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
-                            itemId = transaction.getOriginal().getType().getId();
-                            if (transaction.getFinal().getType() == ItemTypes.NONE) {
-                                itemQty = transaction.getOriginal().getQuantity();
-                            } else {
-                                itemQty = transaction.getOriginal().getQuantity() - transaction.getFinal().getQuantity();
-                            }
-                        }
-
-                        data.set(DataQueries.Target, itemId);
-                        data.set(DataQueries.Quantity, itemQty);
-                    }
-                });
-            });
+            transactions.forEach(transaction -> writeItemTransaction(transaction, locationDataContainer));
         }
 
         /**

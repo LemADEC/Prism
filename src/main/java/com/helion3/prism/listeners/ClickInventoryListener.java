@@ -25,15 +25,17 @@ package com.helion3.prism.listeners;
 
 import com.helion3.prism.Prism;
 import com.helion3.prism.api.records.PrismRecord;
+import com.helion3.prism.util.EventUtil;
+import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
 import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.ItemTypes;
-import org.spongepowered.api.item.inventory.Slot;
+import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
-import org.spongepowered.api.item.inventory.type.CarriedInventory;
+import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 
 public class ClickInventoryListener {
     /**
@@ -42,20 +44,22 @@ public class ClickInventoryListener {
      * @param event Dispense event.
      * @param player Player triggering the event.
      */
-    @Listener(order = Order.POST)
+     @Listener(order = Order.POST)
      public void onInventoryClick(ClickInventoryEvent event, @First Player player) {
         //Make sure we have a transaction to validate
         if (event.getTransactions().size() <= 0) {
             return;
         }
-
-        // We need the carried inventory for this.
-        CarriedInventory<?> c = (CarriedInventory<?>) event.getTransactions().get(0).getSlot().parent();
-        int containerSize = c.iterator().next().capacity();
+        
+        // We need location information
+        final SlotTransaction transactionFirst = event.getTransactions().get(0);
+        final DataContainer locationDataContainer = EventUtil.getLocationDataContainer(transactionFirst, player);
+    
+        final Inventory parent = transactionFirst.getSlot().parent();
+        final int containerSize = parent.capacity();
 
         event.getTransactions().forEach((transaction) -> {
-            Slot slot = transaction.getSlot();
-            if (slot.parent() instanceof CarriedInventory && transaction.getOriginal() != transaction.getFinal()) {
+            if (transaction.getOriginal() != transaction.getFinal()) {
 
                 // KasperFranz - If the current slot is higher than the container size we should abort.
                 if (transaction.getSlot().getProperty(SlotIndex.class, "slotindex").map(SlotIndex::getValue).orElse(-1) >= containerSize) {
@@ -66,14 +70,14 @@ public class ClickInventoryListener {
                 if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
                     if (Prism.listening.INSERT) {
                         PrismRecord.PrismRecordEventBuilder record = PrismRecord.create().source(event.getCause());
-                        record.insertItem(transaction).save();
+                        record.insertItem(transaction, locationDataContainer).save();
                     }
                 }
                 //If the final item is NONE (or amount is less) person is withdrawing
                 if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
                     if (Prism.listening.REMOVE) {
                         PrismRecord.PrismRecordEventBuilder record = PrismRecord.create().source(event.getCause());
-                        record.removeItem(transaction).save();
+                        record.removeItem(transaction, locationDataContainer).save();
                     }
                 }
             }

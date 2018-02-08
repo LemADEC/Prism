@@ -23,13 +23,22 @@
  */
 package com.helion3.prism.util;
 
+import com.helion3.prism.Prism;
 import org.spongepowered.api.block.BlockSnapshot;
 import org.spongepowered.api.block.BlockType;
 import org.spongepowered.api.block.BlockTypes;
+import org.spongepowered.api.block.tileentity.carrier.TileEntityCarrier;
+import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.entity.Entity;
 import org.spongepowered.api.entity.living.Living;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.cause.Cause;
+import org.spongepowered.api.item.inventory.Inventory;
+import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
+import org.spongepowered.api.item.inventory.type.CarriedInventory;
+import org.spongepowered.api.world.Locatable;
+
+import java.util.Optional;
 
 public class EventUtil {
     private EventUtil() {}
@@ -92,5 +101,44 @@ public class EventUtil {
         }
 
         return false;
+    }
+    
+    public static DataContainer getLocationDataContainer(final SlotTransaction transaction, final Locatable locatableDefault) {
+        final Locatable locatable = getLocatable(transaction);
+        return locatable == null ? locatableDefault.getLocation().toContainer() : locatable.getLocation().toContainer();
+    }
+    
+    private static Locatable getLocatable(final SlotTransaction transaction) {
+        final Inventory parent = transaction.getSlot().parent();
+        if (parent instanceof Locatable) {
+            return (Locatable) parent;
+        }
+    
+        final Inventory root = transaction.getSlot().root();
+        if (root instanceof Locatable) {
+            return (Locatable) root;
+        }
+    
+        if (!(root instanceof CarriedInventory)) {
+            Prism.getLogger().error(String.format("getLocatable: Invalid inventory parent class, expecting CarriedInventory\n"
+                                                  + "transaction is %s\nroot is %s",
+                                                  transaction, root));
+            return null;
+        }
+        final Optional oCarrier = ((CarriedInventory) root).getCarrier();
+        if (!oCarrier.isPresent()) {
+            Prism.getLogger().error(String.format("getLocatable: no carrier defined %s\n"
+                                                  + "transaction is %s\nroot is %s",
+                                                  oCarrier, transaction, root));
+            return null;
+        }
+        final Object carrier = oCarrier.get();
+        if (!(carrier instanceof Locatable)) {
+            Prism.getLogger().error(String.format("getLocatable: carrier isn't Locatable %s\n"
+                                                  + "transaction is %s\nroot is %s",
+                                                  carrier, transaction, root));
+            return null;
+        }
+        return (Locatable) carrier;
     }
 }
