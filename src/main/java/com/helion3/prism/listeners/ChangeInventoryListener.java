@@ -27,7 +27,7 @@ import com.helion3.prism.api.records.PrismRecord;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
-import org.spongepowered.api.event.filter.cause.Root;
+import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.item.inventory.ChangeInventoryEvent;
 
 public class ChangeInventoryListener {
@@ -38,7 +38,7 @@ public class ChangeInventoryListener {
      * @param player
      */
     @Listener(order = Order.POST)
-    public void onItemPickup(final ChangeInventoryEvent.Pickup.Pre event, @Root Player player) {
-        PrismRecord.create().player(player).pickedUp(event.getTargetEntity()).save();
+    public void onItemPickup(final ChangeInventoryEvent.Pickup event, @First Player player) {
+        PrismRecord.create().player(player).pickedUp(event.getTransactions()).save();
     }
 }

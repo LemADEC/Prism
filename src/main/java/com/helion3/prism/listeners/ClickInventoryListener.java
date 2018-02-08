@@ -25,17 +25,14 @@ package com.helion3.prism.listeners;
 
 import com.helion3.prism.Prism;
 import com.helion3.prism.api.records.PrismRecord;
-import java.util.Optional;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
-import org.spongepowered.api.event.filter.Getter;
 import org.spongepowered.api.event.filter.cause.First;
-import org.spongepowered.api.event.filter.cause.Root;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.ItemTypes;
-import org.spongepowered.api.item.inventory.Carrier;
 import org.spongepowered.api.item.inventory.Slot;
+import org.spongepowered.api.item.inventory.property.SlotIndex;
 import org.spongepowered.api.item.inventory.type.CarriedInventory;
 
 public class ClickInventoryListener {
@@ -46,15 +43,25 @@ public class ClickInventoryListener {
      * @param player Player triggering the event.
      */
     @Listener(order = Order.POST)
-     public void onInventoryClick(ClickInventoryEvent event, @Root Player player) {
+     public void onInventoryClick(ClickInventoryEvent event, @First Player player) {
         //Make sure we have a transaction to validate
         if (event.getTransactions().size() <= 0) {
             return;
         }
-        
+
+        // We need the carried inventory for this.
+        CarriedInventory<?> c = (CarriedInventory<?>) event.getTransactions().get(0).getSlot().parent();
+        int containerSize = c.iterator().next().capacity();
+
         event.getTransactions().forEach((transaction) -> {
             Slot slot = transaction.getSlot();
             if (slot.parent() instanceof CarriedInventory && transaction.getOriginal() != transaction.getFinal()) {
+
+                // KasperFranz - If the current slot is higher than the container size we should abort.
+                if (transaction.getSlot().getProperty(SlotIndex.class, "slotindex").map(SlotIndex::getValue).orElse(-1) >= containerSize) {
+                    return;
+                }
+
                 //If the final item is SOMETHING (or amount is more) person is inserting
                 if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
                     if (Prism.listening.INSERT) {

@@ -25,7 +25,6 @@ package com.helion3.prism.api.records;
 
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataSerializable;
-import org.spongepowered.api.data.DataContainer;
 
 /**
  * Represents a non-existent value for use with a Transaction.

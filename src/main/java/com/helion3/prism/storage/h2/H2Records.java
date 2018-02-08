@@ -36,7 +36,6 @@ import java.util.concurrent.CompletableFuture;
 import com.helion3.prism.api.flags.Flag;
 import com.helion3.prism.api.records.Result;
 import org.spongepowered.api.data.DataContainer;
-import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
 
 import com.google.gson.JsonObject;

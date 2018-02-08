@@ -25,6 +25,7 @@ package com.helion3.prism.api.records;
 
 import java.util.Date;
 import java.util.Optional;
+import java.util.List;
 
 import org.spongepowered.api.block.BlockSnapshot;
 import org.spongepowered.api.data.DataContainer;
@@ -225,14 +226,14 @@ public class PrismRecord {
         }
 
         /**
-         * Describes a single item entity pickup.
+         * Describes a items picked up at a given Location.
          *
-         * @param entity Item Entity picked up.
+         * @param transactions itemstacks being inserted.
          * @return PrismRecord
          */
-        public PrismRecord pickedUp(Entity entity) {
+        public PrismRecord pickedUp(List<SlotTransaction> transactions) {
             this.eventName = "picked up";
-            writeItem((Item) entity);
+            writeItemTransactions(transactions);
             return new PrismRecord(source, this);
         }
 
@@ -434,6 +435,55 @@ public class PrismRecord {
                 data.set(DataQueries.Target, itemId);
                 data.set(DataQueries.Quantity, itemQty);
             }
+        }
+
+        /**
+         * Helper method for writing block transaction data, using only the
+         * final replacement value. We must alter the data structure slightly to
+         * avoid duplication, decoupling location from blocks, etc.
+         *
+         * @param transactions BlockTransaction representing a block change in
+         * the world.
+         */
+        private void writeItemTransactions(List<SlotTransaction> transactions) {
+            checkNotNull(transactions);
+
+            transactions.forEach((transaction) -> {
+
+                // Location
+                ((CarriedInventory) transaction.getSlot().parent()).getCarrier().ifPresent((Object carrier) -> {
+                    if (carrier instanceof Locatable && !(carrier instanceof Entity)) {
+
+                        DataContainer location = ((Locatable) carrier).getLocation().toContainer();
+                        data.set(DataQueries.Location, location);
+
+                        String itemId = "";
+                        int itemQty = 0;
+
+                        // Insert
+                        if (transaction.getFinal().getType() != ItemTypes.NONE || transaction.getFinal().getQuantity() > transaction.getOriginal().getQuantity()) {
+                            itemId = transaction.getFinal().getType().getId();
+                            if (transaction.getOriginal().getType() == ItemTypes.NONE) {
+                                itemQty = transaction.getFinal().getQuantity();
+                            } else {
+                                itemQty = transaction.getFinal().getQuantity() - transaction.getOriginal().getQuantity();
+                            }
+                        }
+                        // Remove
+                        if (transaction.getFinal().getType() == ItemTypes.NONE || transaction.getFinal().getQuantity() < transaction.getOriginal().getQuantity()) {
+                            itemId = transaction.getOriginal().getType().getId();
+                            if (transaction.getFinal().getType() == ItemTypes.NONE) {
+                                itemQty = transaction.getOriginal().getQuantity();
+                            } else {
+                                itemQty = transaction.getOriginal().getQuantity() - transaction.getFinal().getQuantity();
+                            }
+                        }
+
+                        data.set(DataQueries.Target, itemId);
+                        data.set(DataQueries.Quantity, itemQty);
+                    }
+                });
+            });
         }
 
         /**
