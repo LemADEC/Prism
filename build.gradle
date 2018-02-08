@@ -35,8 +35,6 @@ def getVersionName = { ->
 	return 'xxx'
 }
 
-version = 'S7.0-' + getVersionName()
-
 // Default tasks
 defaultTasks 'licenseFormat', 'check', 'build', 'shadowJar'
 
@@ -53,7 +51,7 @@ ext.buildNumber = project.hasProperty("buildNumber") ? buildNumber : '0'
 ext.ciSystem = project.hasProperty("ciSystem") ? ciSystem : 'unknown'
 ext.commit = project.hasProperty("commit") ? commit : 'unknown'
 
-version = '3.0.0-beta3-S7.0-' + getVersionName()
+version = '3.0.0-beta3-S7.1-' + getVersionName()
 
 // Project repositories
 repositories {
