@@ -30,12 +30,18 @@ import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.Order;
+import org.spongepowered.api.event.block.InteractBlockEvent;
 import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.item.ItemTypes;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.property.SlotIndex;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
+import org.spongepowered.api.world.Location;
+import org.spongepowered.api.world.World;
+
+import java.util.List;
+import java.util.Optional;
 
 public class ClickInventoryListener {
     /**
@@ -52,9 +58,10 @@ public class ClickInventoryListener {
         }
         
         // We need location information
-        final SlotTransaction transactionFirst = event.getTransactions().get(0);
-        final DataContainer locationDataContainer = EventUtil.getLocationDataContainer(transactionFirst, player);
-    
+        final List<SlotTransaction> transactions = event.getTransactions();
+        final DataContainer locationDataContainer = EventUtil.getLocationDataContainer(transactions, player);
+        
+        final SlotTransaction transactionFirst = transactions.get(0);
         final Inventory parent = transactionFirst.getSlot().parent();
         final int containerSize = parent.capacity();
 
@@ -82,5 +89,23 @@ public class ClickInventoryListener {
                 }
             }
         });
+    }
+
+
+    /**
+     * Saves interacted block location for later reference.
+     *
+     * @param event Block interaction event.
+     * @param player Player triggering the event.
+     */
+    @Listener(order = Order.POST)
+    public void onInventoryClick(InteractBlockEvent event, @First Player player) {
+        final Optional<Location<World>> oLocation = event.getTargetBlock().getLocation();
+        if (oLocation.isPresent()) {
+            final Location<World> location = oLocation.get();
+            EventUtil.setInteractedLocation(player, location);
+        } else {
+            EventUtil.clearInteractedLocation(player);
+        }
     }
 }

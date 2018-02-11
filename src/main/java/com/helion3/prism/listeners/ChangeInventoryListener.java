@@ -33,6 +33,8 @@ import org.spongepowered.api.event.filter.cause.First;
 import org.spongepowered.api.event.item.inventory.ChangeInventoryEvent;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 
+import java.util.List;
+
 public class ChangeInventoryListener {
     /**
      * Saves event records when a player picks up an item.
@@ -43,9 +45,9 @@ public class ChangeInventoryListener {
     @Listener(order = Order.POST)
     public void onItemPickup(final ChangeInventoryEvent.Pickup event, @First Player player) {
         // We need location information
-        final SlotTransaction transactionFirst = event.getTransactions().get(0);
-        final DataContainer locationDataContainer = EventUtil.getLocationDataContainer(transactionFirst, player);
+        final List<SlotTransaction> transactions = event.getTransactions();
+        final DataContainer locationDataContainer = EventUtil.getLocationDataContainer(transactions, player);
         
-        PrismRecord.create().player(player).pickedUp(event.getTransactions(), locationDataContainer).save();
+        PrismRecord.create().player(player).pickedUp(transactions, locationDataContainer).save();
     }
 }
