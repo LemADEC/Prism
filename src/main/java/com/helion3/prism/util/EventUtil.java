@@ -229,6 +229,11 @@ public class EventUtil {
             return null;
         }
         final Location<World> location = playerInteractedLocations.get(player.getUniqueId());
+        if (location == null) {
+            Prism.getLogger().warn(String.format("getLastInteractedLocation: interaction without opening a block for player %s",
+                                                 player));
+            return player.getLocation();
+        }
         try {
             if (!location.inExtent(player.getWorld())) {
                 Prism.getLogger().warn(String.format("getLastInteractedLocation: world has changed for player %s", 
