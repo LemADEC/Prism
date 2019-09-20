@@ -24,22 +24,27 @@
 package com.helion3.prism.storage.mysql;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
-
-import javax.sql.DataSource;
+import java.util.Date;
 
 import com.helion3.prism.Prism;
 import com.helion3.prism.api.storage.StorageAdapter;
 import com.helion3.prism.api.storage.StorageAdapterRecords;
 import com.helion3.prism.api.storage.StorageAdapterSettings;
 import com.helion3.prism.util.DataQueries;
+import com.helion3.prism.util.DateUtil;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.spongepowered.api.scheduler.Task;
 
 public class MySQLStorageAdapter implements StorageAdapter {
-    private final String tablePrefix = Prism.getConfig().getNode("db", "mysql", "tablePrefix").getString();
+
+    private final String expiration = Prism.getInstance().getConfig().getStorageCategory().getExpireRecords();
+    private final String tablePrefix = Prism.getInstance().getConfig().getStorageCategory().getTablePrefix();
+    private final int purgeBatchLimit = Prism.getInstance().getConfig().getStorageCategory().getPurgeBatchLimit();
     private final StorageAdapterRecords records;
-    private static DataSource db;
+    private static HikariDataSource db;
     private final String dns;
 
     /**
@@ -47,8 +52,11 @@ public class MySQLStorageAdapter implements StorageAdapter {
      */
     public MySQLStorageAdapter() {
         records = new MySQLRecords();
-        dns = "jdbc:mysql://" + Prism.getConfig().getNode("db", "mysql", "host").getString() + ":"
-                + Prism.getConfig().getNode("db", "mysql", "port").getString() + "/" + Prism.getConfig().getNode("db", "name").getString();
+
+        dns = String.format("jdbc:mysql://%s/%s",
+                Prism.getInstance().getConfig().getStorageCategory().getAddress(),
+                Prism.getInstance().getConfig().getStorageCategory().getDatabase()
+        );
     }
 
     /**
@@ -67,20 +75,28 @@ public class MySQLStorageAdapter implements StorageAdapter {
             // Get data source
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl(dns);
-            config.setUsername(Prism.getConfig().getNode("db", "mysql", "user").getString());
-            config.setPassword(Prism.getConfig().getNode("db", "mysql", "pass").getString());
+            config.setUsername(Prism.getInstance().getConfig().getStorageCategory().getUsername());
+            config.setPassword(Prism.getInstance().getConfig().getStorageCategory().getPassword());
+            config.setMaximumPoolSize(Prism.getInstance().getConfig().getStorageCategory().getMaximumPoolSize());
+            config.setMinimumIdle(Prism.getInstance().getConfig().getStorageCategory().getMinimumIdle());
 
             db = new HikariDataSource(config);
 
             // Create table if needed
             createTables();
 
+            // Purge async
+            Task.builder()
+                    .async()
+                    .name("PrismMySQLPurge")
+                    .execute(this::purge)
+                    .submit(Prism.getInstance().getPluginContainer());
+
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-
-        return false;
     }
 
     /**
@@ -99,7 +115,7 @@ public class MySQLStorageAdapter implements StorageAdapter {
                     + DataQueries.X + " int(10) NOT NULL, "
                     + DataQueries.Y + " smallint(5) NOT NULL, "
                     + DataQueries.Z + " int(10) NOT NULL, "
-                    + DataQueries.Target + " varchar(55), "
+                    + DataQueries.Target + " varchar(255), "
                     + DataQueries.Player + " binary(16), "
                     + DataQueries.Cause + " varchar(55), "
                     + "PRIMARY KEY (`id`), "
@@ -127,6 +143,66 @@ public class MySQLStorageAdapter implements StorageAdapter {
                     + ") ENGINE=InnoDB DEFAULT CHARACTER SET utf8 "
                     + "DEFAULT COLLATE utf8_general_ci;";
             conn.prepareStatement(extra).execute();
+
+            if (Prism.getInstance().getConfig().getGeneralCategory().getSchemaVersion() == 1) {
+                // Expand target: 55 -> 255
+                conn.prepareStatement(String.format("ALTER TABLE %srecords MODIFY %s varchar(255);",
+                        tablePrefix,
+                        DataQueries.Target
+                )).execute();
+
+                Prism.getInstance().getConfig().getGeneralCategory().setSchemaVersion(2);
+                Prism.getInstance().getConfiguration().saveConfiguration();
+            }
+        }
+    }
+
+    /**
+     * Removes expires records and extra information from the database.
+     */
+    protected void purge() {
+        try {
+            Prism.getInstance().getLogger().info("Purging MySQL database...");
+            long purged = 0;
+            while (true) {
+                int count = purgeRecords();
+                if (count == 0) {
+                    break;
+                }
+
+                purged += count;
+                Prism.getInstance().getLogger().info("Deleted {} records", purged);
+            }
+
+            Prism.getInstance().getLogger().info("Finished purging MySQL database");
+        } catch (Exception ex) {
+            Prism.getInstance().getLogger().error("Encountered an error while purging MySQL database", ex);
+        }
+    }
+
+    /**
+     * Removes expires records from the database.
+     *
+     * @return The amount of rows removed.
+     * @throws Exception
+     */
+    protected int purgeRecords() throws Exception {
+        Date date = DateUtil.parseTimeStringToDate(expiration, false);
+        if (date == null) {
+            throw new IllegalArgumentException("Failed to parse expiration");
+        }
+
+        if (purgeBatchLimit <= 0) {
+            throw new IllegalArgumentException("PurgeBatchLimit cannot be equal to or lower than 0");
+        }
+
+        String sql = "DELETE FROM " + tablePrefix + "records "
+                + "WHERE " + tablePrefix + "records.created <= ? "
+                + "LIMIT ?;";
+        try (Connection conn = getConnection(); PreparedStatement statement = conn.prepareStatement(sql)) {
+            statement.setLong(1, date.getTime() / 1000);
+            statement.setInt(2, purgeBatchLimit);
+            return statement.executeUpdate();
         }
     }
 
@@ -143,7 +219,7 @@ public class MySQLStorageAdapter implements StorageAdapter {
 
     @Override
     public void close() {
-        // @todo implement
+        db.close();
     }
 
     @Override

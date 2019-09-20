@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import com.helion3.prism.api.flags.Flag;
 import com.helion3.prism.api.records.Result;
 import org.spongepowered.api.data.DataContainer;
+import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
 
 import com.google.gson.JsonObject;
@@ -55,7 +56,8 @@ import com.helion3.prism.util.DataUtil;
 import com.helion3.prism.util.TypeUtil;
 
 public class MySQLRecords implements StorageAdapterRecords {
-    private final String tablePrefix = Prism.getConfig().getNode("db", "mysql", "tablePrefix").getString();
+
+    private final String tablePrefix = Prism.getInstance().getConfig().getStorageCategory().getTablePrefix();
 
     @Override
     public StorageWriteResult write(List<DataContainer> containers) throws Exception {
@@ -115,7 +117,7 @@ public class MySQLRecords implements StorageAdapterRecords {
             }
 
             if (containers.size() != extraData.size()) {
-                Prism.getLogger().debug("Container has more information than we have extra entries for.");
+                Prism.getInstance().getLogger().debug("Container has more information than we have extra entries for.");
             }
 
             writeExtraData(extraDataMap);
@@ -131,6 +133,8 @@ public class MySQLRecords implements StorageAdapterRecords {
 
         String sql = "INSERT INTO " + tablePrefix + "extra(record_id, json) values(?, ?)";
         try (Connection conn = MySQLStorageAdapter.getConnection(); PreparedStatement statement = conn.prepareStatement(sql)) {
+            conn.setAutoCommit(false);
+
             for (Entry<Integer, String> data : extraDataMap.entrySet()) {
                 statement.setInt(1, data.getKey());
                 statement.setString(2, data.getValue());
@@ -153,7 +157,7 @@ public class MySQLRecords implements StorageAdapterRecords {
 
         // Build query
         SQLQuery query = MySQLQuery.from(session);
-        Prism.getLogger().debug("MySQL Query: " + query);
+        Prism.getInstance().getLogger().debug("MySQL Query: " + query);
 
         try (Connection conn = MySQLStorageAdapter.getConnection(); PreparedStatement statement = conn.prepareStatement(query.toString()); ResultSet rs = statement.executeQuery()) {
             while (rs.next()) {
@@ -179,12 +183,17 @@ public class MySQLRecords implements StorageAdapterRecords {
                     data.set(DataQueries.Location, loc);
 
                     if (rs.getString("json") != null) {
-                        JsonObject json = new JsonParser().parse(rs.getString("json")).getAsJsonObject();
-                        DataView extra = DataUtil.dataViewFromJson(json);
+                        try {
+                            JsonObject json = new JsonParser().parse(rs.getString("json")).getAsJsonObject();
+                            DataView extra = DataUtil.dataViewFromJson(json);
 
-                        extra.getKeys(false).forEach((key) -> {
-                            data.set(key, extra.get(key).get());
-                        });
+                            for (DataQuery key : extra.getKeys(false)) {
+                                data.set(key, extra.get(key).get());
+                            }
+                        } catch (Exception ex) {
+                            Prism.getInstance().getLogger().error("Failed to deserialize {} at {}", target, loc.toString());
+                            throw ex;
+                        }
                     }
                 }
 

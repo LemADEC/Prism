@@ -23,6 +23,7 @@
  */
 package com.helion3.prism.util;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,48 +48,6 @@ public class TypeUtil {
             split = true;
         }
         return (split) ? out.toString().split("~") : new String[0];
-    }
-
-    /**
-     * A simple, specific method to translate an event group to its past tense.
-     *
-     * @param word String event name group.
-     * @return String past-tense verb.
-     * @todo move this to lang file
-     */
-    public static String translateToPastTense(String word) {
-        String verb;
-
-        switch(word) {
-            case "break":
-                verb = "broke";
-                break;
-            case "decay":
-                verb = "decayed";
-                break;
-            case "grow":
-                verb = "grew";
-                break;
-            case "insert":
-                verb = "inserted";
-                break;
-            case "join":
-                verb = "joined";
-                break;
-            case "place":
-                verb = "placed";
-                break;
-            case "remove":
-                verb = "removed";
-                break;
-            case "death":
-                verb = "killed";
-                break;
-            default:
-                verb = word;
-        }
-
-        return verb;
     }
 
     /**
@@ -123,13 +82,32 @@ public class TypeUtil {
      *
      * @param uuid String
      */
-    public  static String uuidStringFromDbString(String uuid) {
+    public static String uuidStringFromDbString(String uuid) {
         // Positions need to be -2
         String completeUuid = uuid.substring(0, 8);
         completeUuid += "-" + uuid.substring(8,12);
         completeUuid += "-" + uuid.substring(12,16);
         completeUuid += "-" + uuid.substring(16,20);
-        completeUuid += "-" + uuid.substring(20, uuid.length());
+        completeUuid += "-" + uuid.substring(20);
         return completeUuid.toLowerCase();
+    }
+
+    /**
+     * Converts an object to a UUID.
+     *
+     * @param uniqueId Object
+     */
+    public static Optional<UUID> uuidFromObject(Object uniqueId) {
+        try {
+            if (uniqueId instanceof String) {
+                return Optional.of(UUID.fromString(uniqueId.toString()));
+            } else if (uniqueId instanceof UUID) {
+                return Optional.of((UUID) uniqueId);
+            }
+
+            return Optional.empty();
+        } catch (IllegalArgumentException ex) {
+            return Optional.empty();
+        }
     }
 }

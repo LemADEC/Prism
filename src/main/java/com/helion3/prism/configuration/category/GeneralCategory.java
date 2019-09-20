@@ -21,24 +21,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.helion3.prism.listeners;
 
-import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.filter.Getter;
-import org.spongepowered.api.event.network.ClientConnectionEvent;
+package com.helion3.prism.configuration.category;
 
-import com.helion3.prism.api.records.PrismRecord;
+import ninja.leaping.configurate.objectmapping.Setting;
+import ninja.leaping.configurate.objectmapping.serialize.ConfigSerializable;
 
-public class JoinListener {
-    /**
-     * Saves event records when a player joins.
-     *
-     * @param event Join event.
-     * @param player
-     */
-    @Listener
-    public void onJoin(final ClientConnectionEvent.Join event, @Getter("getTargetEntity") Player player) {
-        PrismRecord.create().player(player).joined().save();
+@ConfigSerializable
+public class GeneralCategory {
+
+    @Setting(value = "date-format")
+    private String dateFormat = "d/M/yy hh:mm:ss a";
+
+    @Setting(value = "debug", comment = "For debugging purposes")
+    private boolean debug = false;
+
+    @Setting(value = "schema-version")
+    private int schemaVersion = 2;
+
+    public String getDateFormat() {
+        return dateFormat;
+    }
+
+    public void setDateFormat(String dateFormat) {
+        this.dateFormat = dateFormat;
+    }
+
+    public boolean isDebug() {
+        return debug;
+    }
+
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+    }
+
+    public int getSchemaVersion() {
+        return schemaVersion;
+    }
+
+    public void setSchemaVersion(int schemaVersion) {
+        this.schemaVersion = schemaVersion;
     }
 }

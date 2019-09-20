@@ -42,7 +42,7 @@ public class NearCommand {
             .description(Text.of("Alias of /pr l r:(default radius)"))
             .permission("prism.lookup")
             .executor((source, args) -> {
-                int radius = Prism.getConfig().getNode("commands", "near", "defaultRadius").getInt();
+                int radius = Prism.getInstance().getConfig().getDefaultCategory().getRadius();
 
                 source.sendMessage(Format.heading("Querying records..."));
 
@@ -51,13 +51,7 @@ public class NearCommand {
                 session.newQuery().addCondition(ConditionGroup.from(((Player) source).getLocation(), radius));
 
                 // Pass off to an async lookup helper
-                try {
-                    AsyncUtil.lookup(session);
-                } catch (Exception e) {
-                    source.sendMessage(Format.error(e.getMessage()));
-                    e.printStackTrace();
-                }
-
+                AsyncUtil.lookup(session);
                 return CommandResult.success();
             }).build();
     }

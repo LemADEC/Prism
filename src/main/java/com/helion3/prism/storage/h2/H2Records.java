@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import com.helion3.prism.api.flags.Flag;
 import com.helion3.prism.api.records.Result;
 import org.spongepowered.api.data.DataContainer;
+import org.spongepowered.api.data.DataQuery;
 import org.spongepowered.api.data.DataView;
 
 import com.google.gson.JsonObject;
@@ -51,7 +52,8 @@ import com.helion3.prism.util.DataQueries;
 import com.helion3.prism.util.DataUtil;
 
 public class H2Records implements StorageAdapterRecords {
-    private final String tablePrefix = Prism.getConfig().getNode("db", "h2", "tablePrefix").getString();
+
+    private final String tablePrefix = Prism.getInstance().getConfig().getStorageCategory().getTablePrefix();
 
     @Override
     public StorageWriteResult write(List<DataContainer> containers) throws Exception {
@@ -80,7 +82,7 @@ public class H2Records implements StorageAdapterRecords {
                 statement.setInt(4, location.getInt(DataQueries.X).get());
                 statement.setInt(5, location.getInt(DataQueries.Y).get());
                 statement.setInt(6, location.getInt(DataQueries.Z).get());
-                statement.setString(7, container.getString(DataQueries.Target).get());
+                statement.setString(7, container.getString(DataQueries.Target).orElse(null));
                 statement.setString(8, playerUUID);
                 statement.setString(9, container.getString(DataQueries.Cause).orElse(null));
 
@@ -130,7 +132,7 @@ public class H2Records implements StorageAdapterRecords {
         CompletableFuture<List<Result>> future = new CompletableFuture<>();
 
         SQLQuery query = H2SQLQuery.from(session);
-        Prism.getLogger().debug("H2 SQL Query: " + query);
+        Prism.getInstance().getLogger().debug("H2 SQL Query: " + query);
 
         try (Connection conn = H2StorageAdapter.getConnection(); PreparedStatement statement = conn.prepareStatement(query.toString()); ResultSet rs = statement.executeQuery()) {
             List<UUID> uuidsPendingLookup = new ArrayList<>();
@@ -157,12 +159,17 @@ public class H2Records implements StorageAdapterRecords {
                     data.set(DataQueries.Created, rs.getLong(DataQueries.Created.toString()));
 
                     if (rs.getString("json") != null) {
-                        JsonObject json = new JsonParser().parse(rs.getString("json")).getAsJsonObject();
-                        DataView extra = DataUtil.dataViewFromJson(json);
+                        try {
+                            JsonObject json = new JsonParser().parse(rs.getString("json")).getAsJsonObject();
+                            DataView extra = DataUtil.dataViewFromJson(json);
 
-                        extra.getKeys(false).forEach((key) -> {
-                            data.set(key, extra.get(key).get());
-                        });
+                            for (DataQuery key : extra.getKeys(false)) {
+                                data.set(key, extra.get(key).get());
+                            }
+                        } catch (Exception ex) {
+                            Prism.getInstance().getLogger().error("Failed to deserialize {} at {}", target, loc.toString());
+                            throw ex;
+                        }
                     }
                 }
 

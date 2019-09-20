@@ -21,13 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 package com.helion3.prism.storage.mongodb;
 
 import com.helion3.prism.Prism;
 import com.helion3.prism.api.storage.StorageAdapter;
 import com.helion3.prism.api.storage.StorageAdapterRecords;
 import com.helion3.prism.api.storage.StorageAdapterSettings;
+import com.helion3.prism.storage.mongodb.codec.PrimitiveArrayCodec;
 import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoCredential;
 import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoCollection;
@@ -35,10 +38,10 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.IndexOptions;
 
 import java.util.concurrent.TimeUnit;
-import java.util.List;
-import java.util.ArrayList;
 
 import org.bson.Document;
+import org.bson.codecs.configuration.CodecRegistries;
+import org.bson.codecs.configuration.CodecRegistry;
 
 public class MongoStorageAdapter implements StorageAdapter {
 
@@ -53,7 +56,7 @@ public class MongoStorageAdapter implements StorageAdapter {
      *
      */
     public MongoStorageAdapter() {
-        databaseName = Prism.getConfig().getNode("db", "name").getString();
+        databaseName = Prism.getInstance().getConfig().getStorageCategory().getDatabase();
 
         // Collections
         collectionEventRecordsName = "records";
@@ -69,24 +72,20 @@ public class MongoStorageAdapter implements StorageAdapter {
      */
     @Override
     public boolean connect() throws Exception {
-        ServerAddress address = new ServerAddress(
-            Prism.getConfig().getNode("db", "mongo", "host").getString(),
-            Prism.getConfig().getNode("db", "mongo", "port").getInt()
+        ServerAddress address = new ServerAddress(Prism.getInstance().getConfig().getStorageCategory().getAddress(), ServerAddress.defaultPort());
+
+        MongoCredential credential = MongoCredential.createCredential(
+                Prism.getInstance().getConfig().getStorageCategory().getUsername(),
+                databaseName,
+                Prism.getInstance().getConfig().getStorageCategory().getPassword().toCharArray()
         );
-        List<MongoCredential> credentials = new ArrayList<>();
 
-        String user = Prism.getConfig().getNode("db", "mongo", "user").getString();
+        CodecRegistry codecRegistry = CodecRegistries.fromRegistries(
+                MongoClient.getDefaultCodecRegistry(),
+                CodecRegistries.fromCodecs(new PrimitiveArrayCodec())
+        );
 
-        if (user != null && !user.isEmpty()) {
-            credentials.add(
-                MongoCredential.createCredential(
-                    user,
-                    databaseName,
-                    Prism.getConfig().getNode("db", "mongo", "pass").getString().toCharArray()
-                )
-            );
-        }
-        mongoClient = new MongoClient(address, credentials);
+        mongoClient = new MongoClient(address, credential, MongoClientOptions.builder().codecRegistry(codecRegistry).build());
 
         // @todo support auth: boolean auth = db.authenticate(myUserName, myPassword);
 
@@ -102,12 +101,11 @@ public class MongoStorageAdapter implements StorageAdapter {
             // TTL
             IndexOptions options = new IndexOptions().expireAfter(0L, TimeUnit.SECONDS);
             getCollection(collectionEventRecordsName).createIndex(new Document("Expires", 1), options);
+            return true;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
-
-        return false;
     }
 
     @Override

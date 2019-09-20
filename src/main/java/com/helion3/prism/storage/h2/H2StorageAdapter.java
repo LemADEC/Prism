@@ -23,12 +23,18 @@
  */
 package com.helion3.prism.storage.h2;
 
+import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
-
-import javax.sql.DataSource;
+import java.util.Date;
 
 import com.helion3.prism.util.DataQueries;
+import com.helion3.prism.util.DateUtil;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.spongepowered.api.Sponge;
+import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.service.sql.SqlService;
 
 import com.helion3.prism.Prism;
@@ -37,11 +43,14 @@ import com.helion3.prism.api.storage.StorageAdapterRecords;
 import com.helion3.prism.api.storage.StorageAdapterSettings;
 
 public class H2StorageAdapter implements StorageAdapter {
-    private final String tablePrefix = Prism.getConfig().getNode("db", "h2", "tablePrefix").getString();
-    private final SqlService sql = Prism.getGame().getServiceManager().provide(SqlService.class).get();
-    private final String dbPath = Prism.getParentDirectory().getAbsolutePath() + "/" + Prism.getConfig().getNode("db", "name").getString();
+
+    private final String expiration = Prism.getInstance().getConfig().getStorageCategory().getExpireRecords();
+    private final String tablePrefix = Prism.getInstance().getConfig().getStorageCategory().getTablePrefix();
+    private final int purgeBatchLimit = Prism.getInstance().getConfig().getStorageCategory().getPurgeBatchLimit();
+    private final SqlService sql = Sponge.getServiceManager().provide(SqlService.class).get();
+    private final Path dbPath = Prism.getInstance().getPath().getParent().resolve(Prism.getInstance().getConfig().getStorageCategory().getDatabase());
     private final StorageAdapterRecords records;
-    private static DataSource db;
+    private static HikariDataSource db;
 
     /**
      * Create a new instance of the H2 storage adapter.
@@ -64,17 +73,28 @@ public class H2StorageAdapter implements StorageAdapter {
     public boolean connect() throws Exception {
         try {
             // Get data source
-            db = sql.getDataSource("jdbc:h2:" + dbPath);
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl("jdbc:h2:" + dbPath.toString());
+            config.setMaximumPoolSize(Prism.getInstance().getConfig().getStorageCategory().getMaximumPoolSize());
+            config.setMinimumIdle(Prism.getInstance().getConfig().getStorageCategory().getMinimumIdle());
+
+            db = new HikariDataSource(config);
 
             // Create table if needed
             createTables();
 
+            // Purge async
+            Task.builder()
+                    .async()
+                    .name("PrismH2Purge")
+                    .execute(this::purge)
+                    .submit(Prism.getInstance().getPluginContainer());
+
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
+            return false;
         }
-
-        return false;
     }
 
     /**
@@ -92,7 +112,7 @@ public class H2StorageAdapter implements StorageAdapter {
                     + DataQueries.X + " int, "
                     + DataQueries.Y + " smallint, "
                     + DataQueries.Z + " int, "
-                    + DataQueries.Target + " varchar(55), "
+                    + DataQueries.Target + " varchar(255), "
                     + DataQueries.Player + " UUID, "
                     + DataQueries.Cause + " varchar(64))";
             conn.prepareStatement(records).execute();
@@ -100,7 +120,7 @@ public class H2StorageAdapter implements StorageAdapter {
             String extra = "CREATE TABLE IF NOT EXISTS " + tablePrefix + "extra ("
                     + "id int primary key auto_increment, "
                     + "record_id int, "
-                    + "json varchar(30000),"
+                    + "json varchar(65535),"
                     + "CONSTRAINT " + tablePrefix + "extra_ibfk_1 "
                     + "FOREIGN KEY (record_id) "
                     + "REFERENCES " + tablePrefix + "records (id) "
@@ -118,6 +138,71 @@ public class H2StorageAdapter implements StorageAdapter {
 
             String extraIndex = "CREATE INDEX IF NOT EXISTS recordId ON " + tablePrefix + "extra(record_id)";
             conn.prepareStatement(extraIndex).execute();
+
+            if (Prism.getInstance().getConfig().getGeneralCategory().getSchemaVersion() == 1) {
+                // Expand target: 55 -> 255
+                conn.prepareStatement(String.format("ALTER TABLE %srecords ALTER COLUMN %s varchar(255);",
+                        tablePrefix,
+                        DataQueries.Target
+                )).execute();
+
+                // Expand json: varchar(30000) -> varchar(65535)
+                conn.prepareStatement(String.format("ALTER TABLE %sextra ALTER COLUMN json varchar(65535);",
+                        tablePrefix
+                )).execute();
+
+                Prism.getInstance().getConfig().getGeneralCategory().setSchemaVersion(2);
+                Prism.getInstance().getConfiguration().saveConfiguration();
+            }
+        }
+    }
+
+    /**
+     * Removes expires records and extra information from the database.
+     */
+    protected void purge() {
+        try {
+            Prism.getInstance().getLogger().info("Purging H2 database...");
+            long purged = 0;
+            while (true) {
+                int count = purgeRecords();
+                if (count == 0) {
+                    break;
+                }
+
+                purged += count;
+                Prism.getInstance().getLogger().info("Deleted {} records", purged);
+            }
+
+            Prism.getInstance().getLogger().info("Finished purging H2 database");
+        } catch (Exception ex) {
+            Prism.getInstance().getLogger().error("Encountered an error while purging H2 database", ex);
+        }
+    }
+
+    /**
+     * Removes expires records from the database.
+     *
+     * @return The amount of rows removed.
+     * @throws Exception
+     */
+    protected int purgeRecords() throws Exception {
+        Date date = DateUtil.parseTimeStringToDate(expiration, false);
+        if (date == null) {
+            throw new IllegalArgumentException("Failed to parse expiration");
+        }
+
+        if (purgeBatchLimit <= 0) {
+            throw new IllegalArgumentException("PurgeBatchLimit cannot be equal to or lower than 0");
+        }
+
+        String sql = "DELETE FROM " + tablePrefix + "records "
+                + "WHERE " + tablePrefix + "records.created <= ? "
+                + "LIMIT ?;";
+        try (Connection conn = getConnection(); PreparedStatement statement = conn.prepareStatement(sql)) {
+            statement.setLong(1, date.getTime() / 1000);
+            statement.setInt(2, purgeBatchLimit);
+            return statement.executeUpdate();
         }
     }
 
@@ -134,7 +219,7 @@ public class H2StorageAdapter implements StorageAdapter {
 
     @Override
     public void close() {
-        // @todo implement
+        db.close();
     }
 
     @Override

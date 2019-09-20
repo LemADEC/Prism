@@ -21,16 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.helion3.prism.listeners;
 
-import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.entity.DestructEntityEvent;
+package com.helion3.prism.util;
 
-import com.helion3.prism.api.records.PrismRecord;
+public final class Reference {
 
-public class DeathListener {
-    @Listener
-    public void onDeath(final DestructEntityEvent.Death event) {
-        PrismRecord.create().source(event.getCause()).killed(event.getTargetEntity()).save();
+    private Reference() {
     }
+
+    public static final String ID = "prism";
+    public static final String NAME = "Prism";
+    public static final String VERSION = "3.0.0";
+    public static final String DESCRIPTION = "A rollback/restore grief-prevention plugin.";
+    public static final String AUTHORS = "viveleroi";
+    public static final String SOURCE = "https://github.com/prism/Prism";
+    public static final String WEBSITE = "https://github.com/prism/Prism/wiki";
 }

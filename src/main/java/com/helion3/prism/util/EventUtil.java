@@ -127,9 +127,9 @@ public class EventUtil {
         
         final Location<World> location = getLastInteractedLocation(player);
         if (location == null) {
-            Prism.getLogger().error(String.format("getLocationDataContainer: no location found, failed to get last interacted block for player %s first slot %s",
-                                                  player == null ? "-null-" : player,
-                                                  transactions.isEmpty() ? "-none-" : transactions.get(0)));
+            Prism.getInstance().getLogger().error(String.format("getLocationDataContainer: no location found, failed to get last interacted block for player %s first slot %s",
+                                                                player == null ? "-null-" : player,
+                                                                transactions.isEmpty() ? "-none-" : transactions.get(0)));
             return null;
         }
         return location.toContainer();
@@ -168,8 +168,8 @@ public class EventUtil {
                 } else if (carrier instanceof BlockCarrier) {
                     return ((BlockCarrier) carrier).getLocation();
                 } else {
-                    Prism.getLogger().warn(String.format("getLocatable: carrier isn't Locatable nor BlockCarrier %s with root %s",
-                                                         carrier, root));
+                    Prism.getInstance().getLogger().warn(String.format("getLocatable: carrier isn't Locatable nor BlockCarrier %s with root %s",
+                                                                       carrier, root));
                 }
             }
         }
@@ -225,24 +225,24 @@ public class EventUtil {
      */
     public static Location<World> getLastInteractedLocation(Player player) {
         if (player == null) {
-            Prism.getLogger().error("getLastInteractedLocation: player is null");
+            Prism.getInstance().getLogger().error("getLastInteractedLocation: player is null");
             return null;
         }
         final Location<World> location = playerInteractedLocations.get(player.getUniqueId());
         if (location == null) {
-            Prism.getLogger().warn(String.format("getLastInteractedLocation: interaction without opening a block for player %s",
-                                                 player));
+            Prism.getInstance().getLogger().warn(String.format("getLastInteractedLocation: interaction without opening a block for player %s",
+                                                               player));
             return player.getLocation();
         }
         try {
             if (!location.inExtent(player.getWorld())) {
-                Prism.getLogger().warn(String.format("getLastInteractedLocation: world has changed for player %s", 
-                                                     player));
+                Prism.getInstance().getLogger().warn(String.format("getLastInteractedLocation: world has changed for player %s",
+                                                                   player));
                 return player.getLocation();
             }
         } catch (IllegalStateException exception) {
-            Prism.getLogger().warn(String.format("getLastInteractedLocation: world has been unloaded for player %s",
-                                                 player));
+            Prism.getInstance().getLogger().warn(String.format("getLastInteractedLocation: world has been unloaded for player %s",
+                                                               player));
             return player.getLocation();
         }
         return location;

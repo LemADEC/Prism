@@ -21,26 +21,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.helion3.prism.listeners;
 
-import com.helion3.prism.api.records.PrismRecord;
-import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.Order;
-import org.spongepowered.api.event.filter.cause.Root;
-import org.spongepowered.api.event.item.inventory.DropItemEvent;
+package com.helion3.prism.configuration.category;
 
-public class DropItemListener {
-    /**
-     * Saves event records when a player drops an item.
-     *
-     * @param event Dispense event.
-     * @param spawnCause
-     */
-    @Listener(order = Order.POST)
-    public void onDrop(final DropItemEvent.Dispense event, @Root Player spawnCause) {
-        event.getEntities().forEach((e) -> {
-            PrismRecord.create().entity(spawnCause).dropped(e).save();
-        });
+import ninja.leaping.configurate.objectmapping.Setting;
+import ninja.leaping.configurate.objectmapping.serialize.ConfigSerializable;
+
+@ConfigSerializable
+public class DefaultCategory {
+
+    @Setting(value = "enabled")
+    private boolean enabled = true;
+
+    @Setting(value = "radius")
+    private int radius = 5;
+
+    @Setting(value = "since")
+    private String since = "3d";
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public int getRadius() {
+        return radius;
+    }
+
+    public void setRadius(int radius) {
+        this.radius = radius;
+    }
+
+    public String getSince() {
+        return since;
+    }
+
+    public void setSince(String since) {
+        this.since = since;
     }
 }

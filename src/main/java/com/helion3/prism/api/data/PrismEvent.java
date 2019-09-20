@@ -21,33 +21,42 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.helion3.prism.listeners;
 
-import com.helion3.prism.api.records.PrismRecord;
-import com.helion3.prism.util.EventUtil;
-import org.spongepowered.api.data.DataContainer;
-import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.Order;
-import org.spongepowered.api.event.filter.cause.First;
-import org.spongepowered.api.event.item.inventory.ChangeInventoryEvent;
-import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
+package com.helion3.prism.api.data;
 
-import java.util.List;
+import com.helion3.prism.api.records.Result;
 
-public class ChangeInventoryListener {
-    /**
-     * Saves event records when a player picks up an item.
-     *
-     * @param event Pickup event.
-     * @param player
-     */
-    @Listener(order = Order.POST)
-    public void onItemPickup(final ChangeInventoryEvent.Pickup event, @First Player player) {
-        // We need location information
-        final List<SlotTransaction> transactions = event.getTransactions();
-        final DataContainer locationDataContainer = EventUtil.getLocationDataContainer(transactions, player);
-        
-        PrismRecord.create().player(player).pickedUp(transactions, locationDataContainer).save();
+public class PrismEvent {
+
+    private final String id;
+    private final String name;
+    private final String pastTense;
+    private final Class<? extends Result> resultClass;
+
+    private PrismEvent(String id, String name, String pastTense, Class<? extends Result> resultClass) {
+        this.id = id;
+        this.name = name;
+        this.pastTense = pastTense;
+        this.resultClass = resultClass;
+    }
+
+    public static PrismEvent of(String id, String name, String pastTense, Class<? extends Result> resultClass) {
+        return new PrismEvent(id, name, pastTense, resultClass);
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getPastTense() {
+        return pastTense;
+    }
+
+    public Class<? extends Result> getResultClass() {
+        return resultClass;
     }
 }

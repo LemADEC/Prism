@@ -21,20 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 package com.helion3.prism.storage.mongodb;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import com.google.common.collect.Lists;
 import com.helion3.prism.api.flags.Flag;
 import com.helion3.prism.api.query.*;
 import com.helion3.prism.api.records.Result;
+import com.helion3.prism.util.PrimitiveArray;
 import org.bson.Document;
 import org.spongepowered.api.data.DataContainer;
 import org.spongepowered.api.data.DataQuery;
@@ -57,8 +60,9 @@ import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.WriteModel;
 
 public class MongoRecords implements StorageAdapterRecords {
+
     private final BulkWriteOptions bulkWriteOptions = new BulkWriteOptions().ordered(false);
-    private final String expiration = Prism.getConfig().getNode("storage", "expireRecords").getString();
+    private final String expiration = Prism.getInstance().getConfig().getStorageCategory().getExpireRecords();
 
     /**
      * Converts a DataView to a Document, recursively if needed.
@@ -71,45 +75,43 @@ public class MongoRecords implements StorageAdapterRecords {
 
         Set<DataQuery> keys = view.getKeys(false);
         for (DataQuery query : keys) {
-            Optional<Object> optional = view.get(query);
-            if (optional.isPresent()) {
-                String key = query.asString(".");
+            String key = DataUtil.escapeQuery(query);
+            Object value = view.get(query).orElse(null);
 
-                if (optional.get() instanceof List) {
-                    List<Object> convertedList = new ArrayList<>();
-                    for (Object object : (List<?>) optional.get()) {
-
-                        if (object instanceof DataView) {
-                            convertedList.add(documentFromView((DataView) object));
-                        }
-                        else if (object.getClass().isEnum()) {
-                            // Ignoring, this data should exist elsewhere in the document.
-                            // this is ConnectedDirections and other vanilla manipulators
-                            //convertedList.add(object.toString());
-                        }
-                        else if (DataUtil.isPrimitiveType(object)) {
-                            convertedList.add(optional.get());
-                            break;
-                        }
-                        else {
-                            Prism.getLogger().error("Unsupported list data type: " + object.getClass().getName());
-                        }
-                    }
-
-                    if (!convertedList.isEmpty()) {
-                        document.append(key, convertedList);
+            if (value == null) {
+                // continue
+            } else if (value instanceof Collection) {
+                List<Object> convertedList = Lists.newArrayList();
+                for (Object object : (Collection<?>) value) {
+                    if (object == null) {
+                        // continue
+                    } else if (object instanceof DataView) {
+                        convertedList.add(documentFromView((DataView) object));
+                    } else if (DataUtil.isPrimitiveType(object)) {
+                        convertedList.add(object);
+                    } else if (object.getClass().isArray()) {
+                        document.append(key, new PrimitiveArray(object));
+                    } else if (object.getClass().isEnum()) {
+                        // Ignoring, this data should exist elsewhere in the document.
+                        // this is ConnectedDirections and other vanilla manipulators
+                        // convertedList.add(object.toString());
+                    }  else {
+                        Prism.getInstance().getLogger().error("Unsupported list data type: " + object.getClass().getName());
                     }
                 }
-                else if (optional.get() instanceof DataView) {
-                    DataView subView = (DataView) optional.get();
-                    document.append(key, documentFromView(subView));
+
+                if (!convertedList.isEmpty()) {
+                    document.append(key, convertedList);
                 }
-                else {
-                    if (key.equals(DataQueries.Player.toString())) {
-                        document.append(DataQueries.Player.toString(), optional.get());
-                    } else {
-                        document.append(key, optional.get());
-                    }
+            } else if (value instanceof DataView) {
+                document.append(key, documentFromView((DataView) value));
+            } else if (value.getClass().isArray()) {
+                document.append(key, new PrimitiveArray(value));
+            } else {
+                if (key.equals(DataQueries.Player.toString())) {
+                    document.append(DataQueries.Player.toString(), value);
+                } else {
+                    document.append(key, value);
                 }
             }
         }
@@ -126,13 +128,19 @@ public class MongoRecords implements StorageAdapterRecords {
         DataContainer result = DataContainer.createNew();
 
         for (String key : document.keySet()) {
-            DataQuery keyQuery = DataQuery.of(key);
-            Object object = document.get(key);
+            DataQuery query = DataUtil.unescapeQuery(key);
+            Object value = document.get(key);
 
-            if (object instanceof Document) {
-                result.set(keyQuery, documentToDataContainer((Document) object));
+            if (value instanceof Document) {
+                PrimitiveArray primitiveArray = PrimitiveArray.of((Document) value);
+                if (primitiveArray != null) {
+                    result.set(query, primitiveArray.getArray());
+                    continue;
+                }
+
+                result.set(query, documentToDataContainer((Document) value));
             } else {
-                result.set(keyQuery, object);
+                result.set(query, value);
             }
         }
 
@@ -145,16 +153,17 @@ public class MongoRecords implements StorageAdapterRecords {
 
        // Build an array of documents
        List<WriteModel<Document>> documents = new ArrayList<>();
-       containers.stream().map((container) -> documentFromView(container)).map((document) -> {
-           //Prism.getLogger().debug(DataUtil.jsonFromDataView(container).toString());
+       for (DataContainer container : containers) {
+           Document document = documentFromView(container);
+
+           // Prism.getInstance().getLogger().debug(DataUtil.jsonFromDataView(container).toString());
 
            // TTL
            document.append("Expires", DateUtil.parseTimeStringToDate(expiration, true));
-            return document;
-        }).forEachOrdered((document) -> {
-            // Insert
-            documents.add(new InsertOneModel<>(document));
-        });
+           
+           // Insert
+           documents.add(new InsertOneModel<>(document));
+        }
 
        // Write
        collection.bulkWrite(documents, bulkWriteOptions);
@@ -172,12 +181,12 @@ public class MongoRecords implements StorageAdapterRecords {
     */
    private Document buildConditions(List<Condition> fieldsOrGroups) {
        Document conditions = new Document();
-
-       fieldsOrGroups.forEach((fieldOrGroup) -> {
+    
+       for (Condition fieldOrGroup : fieldsOrGroups) {
            if (fieldOrGroup instanceof ConditionGroup) {
                ConditionGroup group = (ConditionGroup) fieldOrGroup;
                Document subDoc = buildConditions(group.getConditions());
-
+            
                if (group.getOperator().equals(Operator.OR)) {
                    conditions.append("$or", subDoc);
                } else {
@@ -185,47 +194,43 @@ public class MongoRecords implements StorageAdapterRecords {
                }
            } else {
                FieldCondition field = (FieldCondition) fieldOrGroup;
-
+            
                Document matcher;
                if (conditions.containsKey(field.getFieldName().toString())) {
                    matcher = (Document) conditions.get(field.getFieldName().toString());
                } else {
                    matcher = new Document();
                }
-
+            
                // Match an array of items
                if (field.getValue() instanceof List) {
                    matcher.append(field.getMatchRule().equals(MatchRule.INCLUDES) ? "$in" : "$nin", field.getValue());
                    conditions.put(field.getFieldName().toString(), matcher);
                }
-
                else if (field.getMatchRule().equals(MatchRule.EQUALS)) {
                    conditions.put(field.getFieldName().toString(), field.getValue());
                }
-
                else if (field.getMatchRule().equals(MatchRule.GREATER_THAN_EQUAL)) {
                    matcher.append("$gte", field.getValue());
                    conditions.put(field.getFieldName().toString(), matcher);
                }
-
                else if (field.getMatchRule().equals(MatchRule.LESS_THAN_EQUAL)) {
                    matcher.append("$lte", field.getValue());
                    conditions.put(field.getFieldName().toString(), matcher);
                }
-
                else if (field.getMatchRule().equals(MatchRule.BETWEEN)) {
                    if (!(field.getValue() instanceof Range)) {
                        throw new IllegalArgumentException("\"Between\" match value must be a Range.");
                    }
-
+                
                    Range<?> range = (Range<?>) field.getValue();
-
+                
                    Document between = new Document("$gte", range.lowerEndpoint()).append("$lte", range.upperEndpoint());
                    conditions.put(field.getFieldName().toString(), between);
                }
            }
-        });
-
+       }
+    
        return conditions;
    }
 
@@ -281,7 +286,7 @@ public class MongoRecords implements StorageAdapterRecords {
            pipeline.add(limit);
 
            aggregated = collection.aggregate(pipeline);
-           Prism.getLogger().debug("MongoDB Query: " + pipeline);
+           Prism.getInstance().getLogger().debug("MongoDB Query: " + pipeline);
        } else {
            // Aggregation pipeline
            List<Document> pipeline = new ArrayList<>();
@@ -290,7 +295,7 @@ public class MongoRecords implements StorageAdapterRecords {
            pipeline.add(limit);
 
            aggregated = collection.aggregate(pipeline);
-           Prism.getLogger().debug("MongoDB Query: " + pipeline);
+           Prism.getInstance().getLogger().debug("MongoDB Query: " + pipeline);
        }
 
        // Iterate results and build our event record list

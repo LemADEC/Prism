@@ -21,24 +21,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.helion3.prism.listeners;
 
-import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.Listener;
-import org.spongepowered.api.event.filter.Getter;
-import org.spongepowered.api.event.network.ClientConnectionEvent;
+package com.helion3.prism.configuration.category;
 
-import com.helion3.prism.api.records.PrismRecord;
+import ninja.leaping.configurate.objectmapping.Setting;
+import ninja.leaping.configurate.objectmapping.serialize.ConfigSerializable;
 
-public class QuitListener {
-    /**
-     * Saves event records when a player quits.
-     *
-     * @param event Disconnect event.
-     * @param player
-     */
-    @Listener
-    public void onQuit(final ClientConnectionEvent.Disconnect event, @Getter("getTargetEntity") Player player) {
-        PrismRecord.create().player(player).quit().save();
+@ConfigSerializable
+public class LimitCategory {
+
+    @Setting(value = "maximum-actionable")
+    private int maximumActionable = 10000;
+
+    @Setting(value = "maximum-lookup")
+    private int maximumLookup = 1000;
+
+    @Setting(value = "maximum-radius")
+    private int maximumRadius = 100;
+
+    public int getMaximumActionable() {
+        return maximumActionable;
+    }
+
+    public void setMaximumActionable(int maximumActionable) {
+        this.maximumActionable = maximumActionable;
+    }
+
+    public int getMaximumLookup() {
+        return maximumLookup;
+    }
+
+    public void setMaximumLookup(int maximumLookup) {
+        this.maximumLookup = maximumLookup;
+    }
+
+    public int getMaximumRadius() {
+        return maximumRadius;
+    }
+
+    public void setMaximumRadius(int maximumRadius) {
+        this.maximumRadius = maximumRadius;
     }
 }

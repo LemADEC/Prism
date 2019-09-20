@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 package com.helion3.prism.commands;
 
 import com.helion3.prism.Prism;
@@ -32,12 +33,10 @@ import com.helion3.prism.api.records.Actionable;
 import com.helion3.prism.api.records.ActionableResult;
 import com.helion3.prism.api.records.Result;
 import com.helion3.prism.util.*;
-import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.CauseStackManager;
 import org.spongepowered.api.text.Text;
 
 import java.util.ArrayList;
@@ -47,7 +46,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class ApplierCommand {
-    private ApplierCommand() {}
+
+    private ApplierCommand() {
+    }
 
     public static CommandSpec getCommand(Sort sort) {
         return CommandSpec.builder()
@@ -65,12 +66,12 @@ public class ApplierCommand {
                 // Ignore user order flag, if used, for proper rollback/restore order to be used.
                 session.setSortBy(sort);
                 future.thenAccept((v) -> {
-                    session.getQuery().setLimit(Prism.getConfig().getNode("query", "actionable", "limit").getInt());
+                    session.getQuery().setLimit(Prism.getInstance().getConfig().getLimitCategory().getMaximumActionable());
 
                     try {
                         List<ActionableResult> actionResults = new ArrayList<>();
                         // Iterate query results
-                        CompletableFuture<List<Result>> futureResults = Prism.getStorageAdapter().records().query(session, false);
+                        CompletableFuture<List<Result>> futureResults = Prism.getInstance().getStorageAdapter().records().query(session, false);
                         futureResults.thenAccept(results -> {
                             if (results.isEmpty()) {
                                 source.sendMessage(Format.error("No results."));
@@ -138,7 +139,7 @@ public class ApplierCommand {
                                 ));
 
                                 if (source instanceof Player) {
-                                    Prism.getLastActionResults().put(((Player) source).getUniqueId(), actionResults);
+                                    Prism.getInstance().getLastActionResults().put(((Player) source).getUniqueId(), actionResults);
                                 }
                             }
                         });
